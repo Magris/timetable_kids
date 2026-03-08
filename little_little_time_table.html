@@ -102,7 +102,7 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
   background: #f1f5f9;
   font-weight: 700;
   color: #475569;
-  padding: 8px 6px;
+  padding: 10px 6px;
   text-align: center;
   white-space: nowrap;
   border-right: 2px solid #cbd5e1;
@@ -112,11 +112,11 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
 }
 .data-cell {
   border: 1px solid #e2e8f0;
-  padding: 6px 5px;
+  padding: 8px 5px;
   text-align: center;
   vertical-align: middle;
   line-height: 1.4;
-  min-height: 36px;
+  min-height: 47px;
   cursor: pointer;
   font-weight: 500;
   position: relative;
@@ -244,7 +244,6 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
     <button class="btn" id="btnRedo" onclick="redo()" disabled>↪ 다시하기</button>
     <button class="btn btn-save" onclick="saveToLocal()">💾 저장</button>
     <button class="btn" onclick="resetToDefault()" title="기본 시간표로 초기화">🔄 초기화</button>
-    <button class="btn btn-html" onclick="downloadHTML()">📄 HTML</button>
     <button class="btn btn-excel" onclick="downloadExcel()">📊 Excel</button>
     <button class="btn btn-img" onclick="downloadImage()">🖼️ 이미지</button>
   </div>
@@ -280,7 +279,10 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
         <div class="color-hint" id="colorHint">선택: 없음</div>
       </div>
       <div class="field">
-        <label class="field-label">행 병합 (rowspan)</label>
+        <label class="field-label">스타일</label>
+        <button class="btn" id="btnBold" onclick="toggleBold()" style="font-weight:700;width:36px;height:36px;font-size:16px;padding:0;">B</button>
+      </div>
+      <div class="field">
         <div style="display:flex;align-items:center;gap:6px">
           <input type="number" id="editRowspan" min="1" value="1">
           <span style="font-size:11px;color:#94a3b8" id="rowspanHint">(최대 10)</span>
@@ -487,6 +489,7 @@ function selectCellAt(row, col) {
   document.getElementById('btnSplit').disabled = !(cell.rowspan > 1);
   document.getElementById('btnSplit').style.opacity = cell.rowspan > 1 ? '1' : '0.4';
 
+  updateBoldButton(cell.bold);
   renderColorPalette();
   renderTable();
 }
@@ -602,6 +605,7 @@ function applyEdit() {
   const key = selected.key;
   const text = document.getElementById('editText').value;
   const rowspan = Math.max(1, Math.min(parseInt(document.getElementById('editRowspan').value) || 1, TIMES.length - selected.row));
+  const isBold = document.getElementById('btnBold').classList.contains('active');
 
   // Remove cells in merge range
   if (rowspan > 1) {
@@ -610,9 +614,30 @@ function applyEdit() {
     }
   }
 
-  cells[key] = { text, colorKey: editColorKey, rowspan, colspan: 1 };
+  cells[key] = { text, colorKey: editColorKey, rowspan, colspan: 1, bold: isBold };
   pushHistory();
   renderTable();
+}
+
+function toggleBold() {
+  const btn = document.getElementById('btnBold');
+  btn.classList.toggle('active');
+  updateBoldButton(btn.classList.contains('active'));
+}
+
+function updateBoldButton(isBold) {
+  const btn = document.getElementById('btnBold');
+  if (isBold) {
+    btn.classList.add('active');
+    btn.style.background = '#1e293b';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#1e293b';
+  } else {
+    btn.classList.remove('active');
+    btn.style.background = '#fff';
+    btn.style.color = '#334155';
+    btn.style.borderColor = '#cbd5e1';
+  }
 }
 
 function splitCell() {
@@ -703,6 +728,7 @@ function renderTable() {
 
       td.style.background = isInDragRange(r, c) ? '#bfdbfe' : color.bg;
       td.style.color = color.fg;
+      if (cell.bold) td.style.fontWeight = '700';
       if (cell.rowspan > 1) td.rowSpan = cell.rowspan;
 
       td.innerHTML = (cell.text || '').replace(/\n/g, '<br>');
@@ -798,7 +824,8 @@ td{border:1px solid #e2e8f0;padding:8px 6px;font-size:12px;text-align:center;ver
       const cell = cells[key] || { text: "", colorKey: "none", rowspan: 1 };
       const color = COLOR_PRESETS[cell.colorKey] || COLOR_PRESETS.none;
       const rs = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : "";
-      html += `<td${rs} style="background:${color.bg};color:${color.fg}">${cell.text.replace(/\n/g, '<br>')}</td>`;
+      const boldStyle = cell.bold ? ";font-weight:700" : "";
+      html += `<td${rs} style="background:${color.bg};color:${color.fg}${boldStyle}">${cell.text.replace(/\n/g, '<br>')}</td>`;
     }
     html += `</tr>\n`;
   }
@@ -821,6 +848,7 @@ function downloadExcel() {
 
   Object.entries(COLOR_PRESETS).forEach(([key, val]) => {
     xml += `<Style ss:ID="c_${key}"><Font ss:Color="${val.fg}" ss:Size="10"/><Interior ss:Color="${val.bg}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>`;
+    xml += `<Style ss:ID="c_${key}_b"><Font ss:Bold="1" ss:Color="${val.fg}" ss:Size="10"/><Interior ss:Color="${val.bg}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>`;
   });
 
   xml += `</Styles><Worksheet ss:Name="시간표"><Table>
@@ -834,7 +862,7 @@ function downloadExcel() {
       if (isCellHidden(r, c)) continue;
       const key = `${r}-${c}`;
       const cell = cells[key] || { text: "", colorKey: "none", rowspan: 1 };
-      const sid = `c_${cell.colorKey || "none"}`;
+      const sid = `c_${cell.colorKey || "none"}${cell.bold ? '_b' : ''}`;
       const merge = cell.rowspan > 1 ? ` ss:MergeDown="${cell.rowspan - 1}"` : "";
       xml += `<Cell ss:StyleID="${sid}"${merge}><Data ss:Type="String">${cell.text.replace(/\n/g, '&#10;')}</Data></Cell>`;
     }
