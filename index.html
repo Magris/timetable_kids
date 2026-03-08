@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>시간표 편집기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gaegu:wght@400;700&family=Gamja+Flower&family=Hi+Melody&family=Jua&family=Nanum+Gothic:wght@400;700&family=Single+Day&family=Sunflower:wght@300;500;700&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -12,6 +15,18 @@ body {
   min-height: 100vh;
   padding: 16px;
 }
+.font-btn {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #fff;
+  color: #475569;
+  transition: all 0.15s;
+}
+.font-btn:hover { background: #f1f5f9; }
+.font-btn.active { background: #1e293b; color: #fff; border-color: #1e293b; }
 
 /* Header */
 .header {
@@ -118,7 +133,7 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
   line-height: 1.4;
   min-height: 47px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 400;
   position: relative;
   transition: outline 0.1s, background 0.1s;
 }
@@ -251,6 +266,18 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
 
 <div class="main">
   <div class="table-wrap">
+    <div id="fontBar" style="display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:11px;color:#64748b;font-weight:700;margin-right:2px;">폰트</span>
+      <button class="font-btn active" data-font="default" onclick="changeFont('default')" style="font-family:inherit">기본</button>
+      <button class="font-btn" data-font="'Nanum Gothic'" onclick="changeFont(&quot;'Nanum Gothic'&quot;)" style="font-family:'Nanum Gothic',sans-serif">나눔고딕</button>
+      <button class="font-btn" data-font="'Jua'" onclick="changeFont(&quot;'Jua'&quot;)" style="font-family:'Jua',sans-serif">주아</button>
+      <button class="font-btn" data-font="'Gaegu'" onclick="changeFont(&quot;'Gaegu'&quot;)" style="font-family:'Gaegu',sans-serif">개구</button>
+      <button class="font-btn" data-font="'Hi Melody'" onclick="changeFont(&quot;'Hi Melody'&quot;)" style="font-family:'Hi Melody',sans-serif">하이멜로디</button>
+      <button class="font-btn" data-font="'Single Day'" onclick="changeFont(&quot;'Single Day'&quot;)" style="font-family:'Single Day',sans-serif">싱글데이</button>
+      <button class="font-btn" data-font="'Sunflower'" onclick="changeFont(&quot;'Sunflower'&quot;)" style="font-family:'Sunflower',sans-serif">해바라기</button>
+      <button class="font-btn" data-font="'Gamja Flower'" onclick="changeFont(&quot;'Gamja Flower'&quot;)" style="font-family:'Gamja Flower',sans-serif">감자꽃</button>
+      <button class="font-btn" data-font="'Do Hyeon'" onclick="changeFont(&quot;'Do Hyeon'&quot;)" style="font-family:'Do Hyeon',sans-serif">도현</button>
+    </div>
     <div id="tableTitle" contenteditable="true" style="
       text-align:center;
       font-size:18px;
@@ -739,7 +766,10 @@ function renderTable() {
 
       td.style.background = isInDragRange(r, c) ? '#bfdbfe' : color.bg;
       td.style.color = color.fg;
-      if (cell.bold) td.style.fontWeight = '700';
+      if (cell.bold) {
+        td.style.fontWeight = '700';
+        td.style.webkitTextStroke = '0.3px currentColor';
+      }
       if (cell.rowspan > 1) td.rowSpan = cell.rowspan;
 
       td.innerHTML = (cell.text || '').replace(/\n/g, '<br>');
@@ -835,7 +865,7 @@ td{border:1px solid #e2e8f0;padding:8px 6px;font-size:12px;text-align:center;ver
       const cell = cells[key] || { text: "", colorKey: "none", rowspan: 1 };
       const color = COLOR_PRESETS[cell.colorKey] || COLOR_PRESETS.none;
       const rs = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : "";
-      const boldStyle = cell.bold ? ";font-weight:700" : "";
+      const boldStyle = cell.bold ? ";font-weight:700;-webkit-text-stroke:0.3px currentColor" : "";
       html += `<td${rs} style="background:${color.bg};color:${color.fg}${boldStyle}">${cell.text.replace(/\n/g, '<br>')}</td>`;
     }
     html += `</tr>\n`;
@@ -913,6 +943,10 @@ function downloadImage() {
   titleEl.contentEditable = 'false';
   titleEl.blur();
 
+  // 폰트 바 숨기기
+  const fontBar = document.getElementById('fontBar');
+  fontBar.style.display = 'none';
+
   const tableWrap = document.querySelector('.table-wrap');
   const originalOverflow = tableWrap.style.overflow;
   tableWrap.style.overflow = 'visible';
@@ -929,6 +963,7 @@ function downloadImage() {
     badges.forEach(b => b.style.display = '');
     timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
     titleEl.contentEditable = 'true';
+    fontBar.style.display = 'flex';
 
     const a = document.createElement('a');
     a.href = canvas.toDataURL('image/png');
@@ -940,6 +975,7 @@ function downloadImage() {
     badges.forEach(b => b.style.display = '');
     timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
     titleEl.contentEditable = 'true';
+    fontBar.style.display = 'flex';
     alert('이미지 저장에 실패했습니다: ' + err.message);
   });
 }
@@ -958,11 +994,29 @@ document.addEventListener('mouseup', () => {
 });
 
 const STORAGE_KEY = 'timetable-editor-data';
+const DEFAULT_FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, sans-serif";
+
+let currentFont = 'default';
+
+function changeFont(val) {
+  currentFont = val;
+  const tableWrap = document.querySelector('.table-wrap');
+  if (val === 'default') {
+    tableWrap.style.fontFamily = DEFAULT_FONT;
+  } else {
+    tableWrap.style.fontFamily = val + ", sans-serif";
+  }
+  // 버튼 활성화 상태 갱신
+  document.querySelectorAll('.font-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.font === val);
+  });
+}
 
 function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
-    const data = JSON.stringify({ cells, times: TIMES, title });
+    const font = currentFont;
+    const data = JSON.stringify({ cells, times: TIMES, title, font });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -979,6 +1033,9 @@ function loadFromLocal() {
       cells = data.cells;
       TIMES = data.times;
       if (data.title) document.getElementById('tableTitle').textContent = data.title;
+      if (data.font) {
+        changeFont(data.font);
+      }
       return true;
     }
   } catch (e) { /* ignore */ }
@@ -993,6 +1050,7 @@ function resetToDefault() {
   historyIdx = -1;
   TIMES = [...DEFAULT_TIMES];
   document.getElementById('tableTitle').textContent = '📅 우리 아이 시간표';
+  changeFont('default');
   // 빈 셀 초기화
   for (let r = 0; r < TIMES.length; r++) {
     for (let c = 0; c < 5; c++) {
