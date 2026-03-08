@@ -892,14 +892,15 @@ function downloadExcel() {
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
 <Style ss:ID="header"><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11"/><Interior ss:Color="#1e293b" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
-<Style ss:ID="tc"><Font ss:Bold="1" ss:Size="10"/><Interior ss:Color="#f1f5f9" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>`;
+<Style ss:ID="tc"><Font ss:Bold="1" ss:Size="10"/><Interior ss:Color="#f1f5f9" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>
+<Style ss:ID="empty"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>`;
 
   Object.entries(COLOR_PRESETS).forEach(([key, val]) => {
     xml += `<Style ss:ID="c_${key}"><Font ss:Color="${val.fg}" ss:Size="10"/><Interior ss:Color="${val.bg}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>`;
     xml += `<Style ss:ID="c_${key}_b"><Font ss:Bold="1" ss:Color="${val.fg}" ss:Size="10"/><Interior ss:Color="${val.bg}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>`;
   });
 
-  xml += `</Styles><Worksheet ss:Name="시간표"><Table>
+  xml += `</Styles><Worksheet ss:Name="시간표"><Table ss:DefaultRowHeight="30">
 <Column ss:Width="100"/>${DAYS.map(() => '<Column ss:Width="140"/>').join('')}
 <Row><Cell ss:StyleID="header"><Data ss:Type="String">시간</Data></Cell>${DAYS.map(d => `<Cell ss:StyleID="header"><Data ss:Type="String">${d}</Data></Cell>`).join('')}</Row>`;
 
@@ -907,12 +908,16 @@ function downloadExcel() {
     xml += '<Row>';
     xml += `<Cell ss:StyleID="tc"><Data ss:Type="String">${TIMES[r]}</Data></Cell>`;
     for (let c = 0; c < 5; c++) {
-      if (isCellHidden(r, c)) continue;
+      if (isCellHidden(r, c)) {
+        // 병합으로 가려진 셀은 건너뛰되 다음 셀에 ss:Index 지정
+        continue;
+      }
       const key = `${r}-${c}`;
       const cell = cells[key] || { text: "", colorKey: "none", rowspan: 1 };
-      const sid = `c_${cell.colorKey || "none"}${cell.bold ? '_b' : ''}`;
+      const sid = cell.text ? `c_${cell.colorKey || "none"}${cell.bold ? '_b' : ''}` : 'empty';
       const merge = cell.rowspan > 1 ? ` ss:MergeDown="${cell.rowspan - 1}"` : "";
-      xml += `<Cell ss:StyleID="${sid}"${merge}><Data ss:Type="String">${cell.text.replace(/\n/g, '&#10;')}</Data></Cell>`;
+      // ss:Index는 1-based, 시간 열이 1이므로 데이터 열은 c+2
+      xml += `<Cell ss:Index="${c + 2}" ss:StyleID="${sid}"${merge}><Data ss:Type="String">${(cell.text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '&#10;')}</Data></Cell>`;
     }
     xml += '</Row>';
   }
