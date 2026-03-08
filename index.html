@@ -251,6 +251,17 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
 
 <div class="main">
   <div class="table-wrap">
+    <div id="tableTitle" contenteditable="true" style="
+      text-align:center;
+      font-size:18px;
+      font-weight:800;
+      color:#1e293b;
+      padding:14px 12px 10px;
+      border-bottom:1px solid #e2e8f0;
+      outline:none;
+      cursor:text;
+      background:#fff;
+    ">📅 우리 아이 시간표</div>
     <table id="timetable">
       <thead><tr><th>시간</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead>
       <tbody id="tbody"></tbody>
@@ -897,6 +908,11 @@ function downloadImage() {
     tc.style.outline = 'none';
   });
 
+  // 제목 편집 커서 제거
+  const titleEl = document.getElementById('tableTitle');
+  titleEl.contentEditable = 'false';
+  titleEl.blur();
+
   const tableWrap = document.querySelector('.table-wrap');
   const originalOverflow = tableWrap.style.overflow;
   tableWrap.style.overflow = 'visible';
@@ -912,6 +928,7 @@ function downloadImage() {
     if (selectedEl) selectedEl.classList.add('selected');
     badges.forEach(b => b.style.display = '');
     timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
+    titleEl.contentEditable = 'true';
 
     const a = document.createElement('a');
     a.href = canvas.toDataURL('image/png');
@@ -922,6 +939,7 @@ function downloadImage() {
     if (selectedEl) selectedEl.classList.add('selected');
     badges.forEach(b => b.style.display = '');
     timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
+    titleEl.contentEditable = 'true';
     alert('이미지 저장에 실패했습니다: ' + err.message);
   });
 }
@@ -943,7 +961,8 @@ const STORAGE_KEY = 'timetable-editor-data';
 
 function saveToLocal() {
   try {
-    const data = JSON.stringify({ cells, times: TIMES });
+    const title = document.getElementById('tableTitle').textContent;
+    const data = JSON.stringify({ cells, times: TIMES, title });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -959,6 +978,7 @@ function loadFromLocal() {
     if (data.cells && data.times) {
       cells = data.cells;
       TIMES = data.times;
+      if (data.title) document.getElementById('tableTitle').textContent = data.title;
       return true;
     }
   } catch (e) { /* ignore */ }
@@ -972,6 +992,7 @@ function resetToDefault() {
   historyStack = [];
   historyIdx = -1;
   TIMES = [...DEFAULT_TIMES];
+  document.getElementById('tableTitle').textContent = '📅 우리 아이 시간표';
   // 빈 셀 초기화
   for (let r = 0; r < TIMES.length; r++) {
     for (let c = 0; c < 5; c++) {
