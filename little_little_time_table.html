@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시간표 편집기</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, sans-serif;
+  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+  min-height: 100vh;
+  padding: 16px;
+}
+
+/* Header */
+.header {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-left h1 { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+.header-left p { font-size: 11px; color: #64748b; margin-top: 2px; }
+.header-right { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Buttons */
+.btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff;
+  color: #334155;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.btn:hover { background: #f1f5f9; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-html { background: #0369a1; color: #fff; border-color: #0369a1; }
+.btn-html:hover { background: #075985; }
+.btn-excel { background: #065f46; color: #fff; border-color: #065f46; }
+.btn-excel:hover { background: #064e3b; }
+.btn-img { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+.btn-img:hover { background: #6d28d9; }
+.btn-save { background: #ea580c; color: #fff; border-color: #ea580c; }
+.btn-save:hover { background: #c2410c; }
+.btn-danger { color: #dc2626; border-color: #fca5a5; }
+.btn-danger:hover { background: #fef2f2; }
+
+/* Layout */
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .main { grid-template-columns: 1fr; }
+}
+
+/* Table Container */
+.table-wrap {
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 650px;
+  font-size: 12px;
+  user-select: none;
+  table-layout: fixed;
+}
+thead th {
+  background: #1e293b;
+  color: #fff;
+  padding: 10px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+thead th:first-child { width: 110px; }
+thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
+.time-cell {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #475569;
+  padding: 8px 6px;
+  text-align: center;
+  white-space: nowrap;
+  border-right: 2px solid #cbd5e1;
+  border-bottom: 1px solid #e2e8f0;
+  min-width: 100px;
+  font-size: 11px;
+}
+.data-cell {
+  border: 1px solid #e2e8f0;
+  padding: 6px 5px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 1.4;
+  min-height: 36px;
+  cursor: pointer;
+  font-weight: 500;
+  position: relative;
+  transition: outline 0.1s, background 0.1s;
+}
+.data-cell:hover { filter: brightness(0.97); }
+.data-cell.selected { outline: 2px solid #2563eb; outline-offset: -2px; }
+.data-cell.in-drag { background: #bfdbfe !important; }
+.merge-badge {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 9px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 14px;
+}
+
+/* Edit Panel */
+.panel {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  position: sticky;
+  top: 16px;
+}
+.panel h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+.field { margin-bottom: 12px; }
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.field textarea, .field input[type="number"] {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.field textarea { resize: vertical; }
+.field input[type="number"] { width: 60px; text-align: center; }
+
+/* Color palette */
+.color-palette { display: flex; flex-wrap: wrap; gap: 4px; }
+.color-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
+}
+.color-btn.active { border: 2px solid #2563eb; transform: scale(1.1); }
+.color-hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+.actions { display: flex; flex-direction: column; gap: 6px; }
+.actions-row { display: flex; gap: 6px; }
+.actions-row .btn { flex: 1; }
+
+.hint-box {
+  margin-top: 14px;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 30px 0;
+  color: #94a3b8;
+}
+.empty-state .icon { font-size: 40px; }
+.empty-state p { margin-top: 8px; font-size: 12px; }
+
+/* Legend */
+.legend {
+  max-width: 1100px;
+  margin: 16px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <span style="font-size:28px">📅</span>
+    <div>
+      <h1>시간표 편집기</h1>
+      <p>셀 클릭으로 편집 · Shift+드래그로 병합 · 다운로드</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="btn" id="btnUndo" onclick="undo()" disabled>↩ 되돌리기</button>
+    <button class="btn" id="btnRedo" onclick="redo()" disabled>↪ 다시하기</button>
+    <button class="btn btn-save" onclick="saveToLocal()">💾 저장</button>
+    <button class="btn" onclick="resetToDefault()" title="기본 시간표로 초기화">🔄 초기화</button>
+    <button class="btn btn-html" onclick="downloadHTML()">📄 HTML</button>
+    <button class="btn btn-excel" onclick="downloadExcel()">📊 Excel</button>
+    <button class="btn btn-img" onclick="downloadImage()">🖼️ 이미지</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="table-wrap">
+    <table id="timetable">
+      <thead><tr><th>시간</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="panel">
+    <h3 id="panelTitle">셀을 선택하세요</h3>
+    <div id="panelEmpty" class="empty-state">
+      <div class="icon">👆</div>
+      <p>시간표의 셀을 클릭하면<br>여기서 편집할 수 있습니다</p>
+      <div class="hint-box" style="margin-top:14px;text-align:left">
+        📌 <strong>셀 편집:</strong> 요일 셀 클릭 → 내용·색상·병합 수정<br><br>
+        🕐 <strong>시간 편집:</strong> 왼쪽 시간 셀 클릭 → 라벨 수정, 행 추가/삭제<br><br>
+        🔗 <strong>드래그 병합:</strong> Shift + 마우스 드래그로 같은 열의 셀 병합
+      </div>
+    </div>
+    <div id="panelEdit" style="display:none">
+      <div class="field">
+        <label class="field-label">내용</label>
+        <textarea id="editText" rows="2"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">색상</label>
+        <div class="color-palette" id="colorPalette"></div>
+        <div class="color-hint" id="colorHint">선택: 없음</div>
+      </div>
+      <div class="field">
+        <label class="field-label">행 병합 (rowspan)</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="editRowspan" min="1" value="1">
+          <span style="font-size:11px;color:#94a3b8" id="rowspanHint">(최대 10)</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" style="width:100%;padding:10px 0;font-weight:700" onclick="applyEdit()">✓ 적용</button>
+        <div class="actions-row">
+          <button class="btn" id="btnSplit" onclick="splitCell()">병합해제</button>
+          <button class="btn btn-danger" onclick="deleteCell()">삭제</button>
+        </div>
+      </div>
+      <div class="hint-box">
+        💡 <strong>드래그 병합:</strong> Shift + 마우스 드래그로 같은 열의 셀을 병합할 수 있습니다.
+      </div>
+    </div>
+    <div id="panelTime" style="display:none">
+      <div class="field">
+        <label class="field-label">시간 라벨</label>
+        <input type="text" id="editTimeText" style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;">
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn btn-primary" style="width:100%;padding:10px 0;font-weight:700" onclick="applyTimeEdit()">✓ 적용</button>
+        <div class="actions-row" style="margin-top:6px">
+          <button class="btn" style="flex:1" onclick="addTimeRow()">＋ 행 추가 (아래)</button>
+          <button class="btn btn-danger" style="flex:1" onclick="removeTimeRow()">－ 행 삭제</button>
+        </div>
+      </div>
+      <div class="hint-box">
+        💡 시간 라벨을 수정하거나, 행을 추가/삭제할 수 있습니다.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<a href="https://smartstore.naver.com/little__little/products/12706314208" target="_blank" rel="noopener" style="display:block;max-width:800px;margin:20px auto 0;text-decoration:none;">
+  <div style="background:#fff;border:1px solid #e2e8f0;overflow:hidden;display:flex;align-items:center;gap:16px;padding:14px 18px;transition:box-shadow 0.2s;">
+    <img src="https://shop-phinf.pstatic.net/20251119_157/1763528486406R06Fa_JPEG/26510822519479038_1687863399.jpg" alt="상품 이미지" style="width:120px;height:120px;object-fit:cover;border-radius:6px;flex-shrink:0;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:16px;color:#ea580c;font-weight:700;margin-bottom:3px;">AD</div>
+      <div style="font-size:20px;font-weight:700;color:#0f172a;">초등학교 유치원 어린이집 신학기 학용품 방수 네임스티커</div>
+      <div style="font-size:16px;color:#64748b;margin-top:4px;">리틀리틀 스마트스토어 → 상품 보러가기</div>
+    </div>
+  </div>
+</a>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+const COLOR_PRESETS = {
+  school: { label: "학교(수업)", bg: "#e0f2fe", fg: "#0369a1", emoji: "📚" },
+  lunch: { label: "점심", bg: "#fef3c7", fg: "#92400e", emoji: "🍱" },
+  care: { label: "돌봄", bg: "#fef9c3", fg: "#78350f", emoji: "🏫" },
+  piano: { label: "피아노", bg: "#fce7f3", fg: "#9d174d", emoji: "🎹" },
+  math: { label: "수학", bg: "#d1fae5", fg: "#065f46", emoji: "📐" },
+  english: { label: "영어학원", bg: "#dbeafe", fg: "#1e40af", emoji: "📖" },
+  taekwondo: { label: "태권도", bg: "#fee2e2", fg: "#991b1b", emoji: "🥋" },
+  art: { label: "미술", bg: "#fdf4ff", fg: "#86198f", emoji: "🎨" },
+  swimming: { label: "수영", bg: "#cffafe", fg: "#155e75", emoji: "🏊" },
+  soccer: { label: "축구", bg: "#dcfce7", fg: "#166534", emoji: "⚽" },
+  coding: { label: "코딩", bg: "#f0f9ff", fg: "#0c4a6e", emoji: "💻" },
+  transport: { label: "이동", bg: "#f3f4f6", fg: "#6b7280", emoji: "🚗" },
+  home: { label: "귀가", bg: "#f0fdf4", fg: "#166534", emoji: "🏠" },
+  none: { label: "없음", bg: "#ffffff", fg: "#1f2937", emoji: "" },
+};
+
+const DAYS = ["월", "화", "수", "목", "금"];
+let TIMES = [
+  "1:00", "1:30", "1:40", "1:45", "2:00", "2:30", "3:00", "3:30", "5:00 집도착",
+];
+
+let cells = {};
+let selected = null; // { row, col, key }
+let selectedTimeRow = null; // 시간셀 선택 시 row index
+let editColorKey = "none";
+let historyStack = [];
+let historyIdx = -1;
+let dragStart = null;
+let dragEnd = null;
+let isDragging = false;
+
+function init(row, col, text, colorKey, rowspan) {
+  cells[`${row}-${col}`] = { text, colorKey, rowspan: rowspan || 1, colspan: 1 };
+}
+
+const DEFAULT_TIMES = [
+  "1:00", "1:30", "1:40", "1:45", "2:00", "2:30", "3:00", "3:30", "5:00 집도착",
+];
+
+function createInitialData() {
+  cells = {};
+
+  // 월 (col 0) — 학교, 돌봄, 태권도, 영어
+  init(0, 0, "수업중 5교시", "school", 3);
+  init(3, 0, "돌봄 출석", "care");
+  init(4, 0, "🚗태권도 픽업", "transport");
+  init(5, 0, "🥋태권도\n2:30~3:30", "taekwondo", 2);
+  init(7, 0, "📖영어학원 ~5:00", "english");
+  init(8, 0, "🏠 귀가", "home");
+
+  // 화 (col 1) — 학교, 피아노, 미술
+  init(0, 1, "수업중 5교시", "school", 3);
+  init(3, 1, "🚗피아노 픽업 1:45", "transport");
+  init(4, 1, "🎹피아노\n~3:00", "piano", 2);
+  init(6, 1, "🚗미술 이동", "transport");
+  init(7, 1, "🎨미술학원 ~5:00", "art");
+  init(8, 1, "🏠 귀가", "home");
+
+  // 수 (col 2) — 학교, 돌봄, 수영, 영어
+  init(0, 2, "수업중 5교시", "school", 3);
+  init(3, 2, "돌봄 출석", "care");
+  init(4, 2, "🚗수영 픽업", "transport");
+  init(5, 2, "🏊수영\n2:30~3:30", "swimming", 2);
+  init(7, 2, "📖영어학원 ~5:00", "english");
+  init(8, 2, "🏠 귀가", "home");
+
+  // 목 (col 3) — 돌봄, 피아노, 코딩
+  init(0, 3, "돌봄 출석", "care", 3);
+  init(3, 3, "🚗피아노 픽업 1:45", "transport");
+  init(4, 3, "🎹피아노\n~3:00", "piano", 2);
+  init(6, 3, "🚗코딩 이동", "transport");
+  init(7, 3, "💻코딩학원 ~5:00", "coding");
+  init(8, 3, "🏠 귀가", "home");
+
+  // 금 (col 4) — 돌봄, 수학, 축구
+  init(0, 4, "돌봄 출석\n수학 선생님 픽업", "care");
+  init(1, 4, "📐수학 1:30~2:30", "math", 4);
+  init(5, 4, "🚗축구 이동", "transport");
+  init(6, 4, "⚽축구\n3:00~4:30", "soccer", 2);
+  init(8, 4, "🏠 귀가", "home");
+}
+
+function isCellHidden(row, col) {
+  for (let r = 0; r < row; r++) {
+    const c = cells[`${r}-${col}`];
+    if (c && c.rowspan > 1 && r + c.rowspan > row) return true;
+  }
+  return false;
+}
+
+function getOwnerCell(row, col) {
+  for (let r = row; r >= 0; r--) {
+    const key = `${r}-${col}`;
+    const c = cells[key];
+    if (c && (r === row || (c.rowspan > 1 && r + c.rowspan > row))) {
+      return { row: r, col, key };
+    }
+  }
+  return null;
+}
+
+function pushHistory() {
+  historyStack = historyStack.slice(0, historyIdx + 1);
+  historyStack.push({ cells: JSON.parse(JSON.stringify(cells)), times: [...TIMES] });
+  historyIdx++;
+  updateUndoRedoButtons();
+}
+
+function undo() {
+  if (historyIdx > 0) {
+    historyIdx--;
+    const snap = historyStack[historyIdx];
+    cells = JSON.parse(JSON.stringify(snap.cells));
+    TIMES = [...snap.times];
+    renderTable();
+    updateUndoRedoButtons();
+  }
+}
+
+function redo() {
+  if (historyIdx < historyStack.length - 1) {
+    historyIdx++;
+    const snap = historyStack[historyIdx];
+    cells = JSON.parse(JSON.stringify(snap.cells));
+    TIMES = [...snap.times];
+    renderTable();
+    updateUndoRedoButtons();
+  }
+}
+
+function updateUndoRedoButtons() {
+  document.getElementById('btnUndo').disabled = historyIdx <= 0;
+  document.getElementById('btnRedo').disabled = historyIdx >= historyStack.length - 1;
+}
+
+function selectCellAt(row, col) {
+  selectedTimeRow = null;
+  const owner = getOwnerCell(row, col);
+  if (!owner) return;
+  selected = owner;
+  const cell = cells[owner.key] || { text: "", colorKey: "none", rowspan: 1 };
+  document.getElementById('editText').value = cell.text;
+  editColorKey = cell.colorKey || "none";
+  document.getElementById('editRowspan').value = cell.rowspan || 1;
+  document.getElementById('editRowspan').max = TIMES.length - owner.row;
+  document.getElementById('rowspanHint').textContent = `(최대 ${TIMES.length - owner.row})`;
+
+  document.getElementById('panelTitle').textContent = `셀 편집 [${TIMES[owner.row]} · ${DAYS[owner.col]}]`;
+  document.getElementById('panelEmpty').style.display = 'none';
+  document.getElementById('panelEdit').style.display = 'block';
+  document.getElementById('panelTime').style.display = 'none';
+
+  document.getElementById('btnSplit').disabled = !(cell.rowspan > 1);
+  document.getElementById('btnSplit').style.opacity = cell.rowspan > 1 ? '1' : '0.4';
+
+  renderColorPalette();
+  renderTable();
+}
+
+function selectTimeCell(row) {
+  selected = null;
+  selectedTimeRow = row;
+
+  document.getElementById('editTimeText').value = TIMES[row];
+  document.getElementById('panelTitle').textContent = `시간 편집 [${row + 1}행: ${TIMES[row]}]`;
+  document.getElementById('panelEmpty').style.display = 'none';
+  document.getElementById('panelEdit').style.display = 'none';
+  document.getElementById('panelTime').style.display = 'block';
+
+  renderTable();
+}
+
+function applyTimeEdit() {
+  if (selectedTimeRow === null) return;
+  TIMES[selectedTimeRow] = document.getElementById('editTimeText').value;
+  document.getElementById('panelTitle').textContent = `시간 편집 [${selectedTimeRow + 1}행: ${TIMES[selectedTimeRow]}]`;
+  pushHistory();
+  renderTable();
+}
+
+function addTimeRow() {
+  if (selectedTimeRow === null) return;
+  const insertAt = selectedTimeRow + 1;
+
+  // TIMES 배열에 새 행 추가
+  TIMES.splice(insertAt, 0, "새 시간");
+
+  // cells 키를 뒤에서부터 한 칸씩 밀기
+  const newCells = {};
+  Object.entries(cells).forEach(([key, val]) => {
+    const [r, c] = key.split('-').map(Number);
+    if (r >= insertAt) {
+      newCells[`${r + 1}-${c}`] = val;
+    } else {
+      // 병합이 insertAt을 걸치는 경우 rowspan 늘리기
+      if (val.rowspan > 1 && r + val.rowspan > insertAt) {
+        newCells[key] = { ...val, rowspan: val.rowspan + 1 };
+      } else {
+        newCells[key] = val;
+      }
+    }
+  });
+  // 새 행의 5개 셀 초기화 (병합에 포함되지 않은 것만)
+  for (let c = 0; c < 5; c++) {
+    if (!isCellHiddenIn(newCells, insertAt, c)) {
+      if (!newCells[`${insertAt}-${c}`]) {
+        newCells[`${insertAt}-${c}`] = { text: "", colorKey: "none", rowspan: 1, colspan: 1 };
+      }
+    }
+  }
+  cells = newCells;
+  pushHistory();
+  selectTimeCell(insertAt);
+  renderTable();
+}
+
+function removeTimeRow() {
+  if (selectedTimeRow === null || TIMES.length <= 1) return;
+  const removeAt = selectedTimeRow;
+
+  TIMES.splice(removeAt, 1);
+
+  const newCells = {};
+  Object.entries(cells).forEach(([key, val]) => {
+    const [r, c] = key.split('-').map(Number);
+    if (r === removeAt) {
+      // 삭제되는 행 — 병합 시작셀이면 아래로 이동
+      if (val.rowspan > 1) {
+        newCells[`${r}-${c}`] = { ...val, rowspan: val.rowspan - 1 };
+      }
+      return;
+    }
+    if (r > removeAt) {
+      newCells[`${r - 1}-${c}`] = val;
+    } else {
+      // 병합이 삭제행을 포함하면 rowspan 줄이기
+      if (val.rowspan > 1 && r + val.rowspan > removeAt) {
+        newCells[key] = { ...val, rowspan: val.rowspan - 1 };
+      } else {
+        newCells[key] = val;
+      }
+    }
+  });
+  cells = newCells;
+
+  selectedTimeRow = null;
+  selected = null;
+  document.getElementById('panelTitle').textContent = '셀을 선택하세요';
+  document.getElementById('panelEmpty').style.display = 'block';
+  document.getElementById('panelEdit').style.display = 'none';
+  document.getElementById('panelTime').style.display = 'none';
+
+  pushHistory();
+  renderTable();
+}
+
+// isCellHidden 변형 — 특정 cells 객체 기준
+function isCellHiddenIn(cellsObj, row, col) {
+  for (let r = 0; r < row; r++) {
+    const c = cellsObj[`${r}-${col}`];
+    if (c && c.rowspan > 1 && r + c.rowspan > row) return true;
+  }
+  return false;
+}
+
+function applyEdit() {
+  if (!selected) return;
+  const key = selected.key;
+  const text = document.getElementById('editText').value;
+  const rowspan = Math.max(1, Math.min(parseInt(document.getElementById('editRowspan').value) || 1, TIMES.length - selected.row));
+
+  // Remove cells in merge range
+  if (rowspan > 1) {
+    for (let r = selected.row + 1; r < selected.row + rowspan && r < TIMES.length; r++) {
+      delete cells[`${r}-${selected.col}`];
+    }
+  }
+
+  cells[key] = { text, colorKey: editColorKey, rowspan, colspan: 1 };
+  pushHistory();
+  renderTable();
+}
+
+function splitCell() {
+  if (!selected) return;
+  const cell = cells[selected.key];
+  if (!cell || cell.rowspan <= 1) return;
+
+  const oldSpan = cell.rowspan;
+  cells[selected.key] = { ...cell, rowspan: 1 };
+  for (let r = selected.row + 1; r < selected.row + oldSpan; r++) {
+    cells[`${r}-${selected.col}`] = { text: "", colorKey: "none", rowspan: 1, colspan: 1 };
+  }
+  pushHistory();
+  document.getElementById('editRowspan').value = 1;
+  document.getElementById('btnSplit').disabled = true;
+  document.getElementById('btnSplit').style.opacity = '0.4';
+  renderTable();
+}
+
+function deleteCell() {
+  if (!selected) return;
+  cells[selected.key] = { text: "", colorKey: "none", rowspan: 1, colspan: 1 };
+  pushHistory();
+  document.getElementById('editText').value = "";
+  editColorKey = "none";
+  document.getElementById('editRowspan').value = 1;
+  renderColorPalette();
+  renderTable();
+}
+
+function renderColorPalette() {
+  const palette = document.getElementById('colorPalette');
+  palette.innerHTML = '';
+  Object.entries(COLOR_PRESETS).forEach(([key, val]) => {
+    const btn = document.createElement('button');
+    btn.className = 'color-btn' + (editColorKey === key ? ' active' : '');
+    btn.style.background = val.bg;
+    btn.style.color = val.fg;
+    btn.title = val.label;
+    btn.textContent = val.emoji || '·';
+    btn.onclick = () => {
+      editColorKey = key;
+      renderColorPalette();
+    };
+    palette.appendChild(btn);
+  });
+  document.getElementById('colorHint').textContent = '선택: ' + (COLOR_PRESETS[editColorKey]?.label || '없음');
+}
+
+function isInDragRange(row, col) {
+  if (!isDragging || !dragStart || !dragEnd) return false;
+  if (col !== dragStart.col) return false;
+  const minR = Math.min(dragStart.row, dragEnd.row);
+  const maxR = Math.max(dragStart.row, dragEnd.row);
+  return row >= minR && row <= maxR;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  for (let r = 0; r < TIMES.length; r++) {
+    const tr = document.createElement('tr');
+
+    // Time column
+    const timeTd = document.createElement('td');
+    timeTd.className = 'time-cell';
+    timeTd.textContent = TIMES[r];
+    timeTd.style.cursor = 'pointer';
+    if (selectedTimeRow === r) {
+      timeTd.style.outline = '2px solid #2563eb';
+      timeTd.style.outlineOffset = '-2px';
+    }
+    const timeRow = r;
+    timeTd.onclick = () => selectTimeCell(timeRow);
+    tr.appendChild(timeTd);
+
+    for (let c = 0; c < 5; c++) {
+      if (isCellHidden(r, c)) continue;
+      const key = `${r}-${c}`;
+      const cell = cells[key] || { text: "", colorKey: "none", rowspan: 1 };
+      const color = COLOR_PRESETS[cell.colorKey] || COLOR_PRESETS.none;
+
+      const td = document.createElement('td');
+      td.className = 'data-cell';
+      if (selected && selected.key === key) td.classList.add('selected');
+      if (isInDragRange(r, c)) td.classList.add('in-drag');
+
+      td.style.background = isInDragRange(r, c) ? '#bfdbfe' : color.bg;
+      td.style.color = color.fg;
+      if (cell.rowspan > 1) td.rowSpan = cell.rowspan;
+
+      td.innerHTML = (cell.text || '').replace(/\n/g, '<br>');
+
+      if (cell.rowspan > 1) {
+        const badge = document.createElement('span');
+        badge.className = 'merge-badge';
+        badge.textContent = '↕' + cell.rowspan;
+        td.appendChild(badge);
+      }
+
+      // Events
+      const row = r, col = c;
+      td.onclick = () => selectCellAt(row, col);
+      td.onmousedown = (e) => {
+        if (e.shiftKey) {
+          dragStart = { row, col };
+          dragEnd = { row, col };
+          isDragging = true;
+          renderTable();
+        }
+      };
+      td.onmouseenter = () => {
+        if (isDragging && dragStart && col === dragStart.col) {
+          dragEnd = { row, col };
+          renderTable();
+        }
+      };
+      td.onmouseup = () => {
+        if (isDragging) finishDrag();
+      };
+
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+function finishDrag() {
+  if (dragStart && dragEnd && dragStart.col === dragEnd.col) {
+    const startRow = Math.min(dragStart.row, dragEnd.row);
+    const endRow = Math.max(dragStart.row, dragEnd.row);
+    const col = dragStart.col;
+    const span = endRow - startRow + 1;
+
+    if (span > 1) {
+      for (let r = startRow + 1; r <= endRow; r++) {
+        delete cells[`${r}-${col}`];
+      }
+      const existing = cells[`${startRow}-${col}`] || { text: "", colorKey: "none", colspan: 1 };
+      cells[`${startRow}-${col}`] = { ...existing, rowspan: span };
+      pushHistory();
+      selectCellAt(startRow, col);
+    }
+  }
+  isDragging = false;
+  dragStart = null;
+  dragEnd = null;
+  renderTable();
+}
+
+function renderLegend() {
+  const legend = document.getElementById('legend');
+  Object.entries(COLOR_PRESETS).forEach(([key, val]) => {
+    if (key === 'none') return;
+    const span = document.createElement('span');
+    span.className = 'legend-item';
+    span.style.background = val.bg;
+    span.style.color = val.fg;
+    span.style.border = `1px solid ${val.fg}22`;
+    span.textContent = `${val.emoji} ${val.label}`;
+    legend.appendChild(span);
+  });
+}
+
+function downloadHTML() {
+  let html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>시간표</title>
+<style>
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;padding:20px;background:#f8fafc}
+table{border-collapse:collapse;width:100%;max-width:900px;margin:0 auto;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+th{background:#1e293b;color:#fff;padding:10px 8px;font-size:13px;font-weight:600}
+td{border:1px solid #e2e8f0;padding:8px 6px;font-size:12px;text-align:center;vertical-align:middle}
+.tc{background:#f1f5f9;font-weight:600;font-size:11px;color:#475569;white-space:nowrap;width:110px}
+</style></head><body>
+<table><thead><tr><th>시간</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>\n`;
+
+  for (let r = 0; r < TIMES.length; r++) {
+    html += `<tr><td class="tc">${TIMES[r]}</td>`;
+    for (let c = 0; c < 5; c++) {
+      if (isCellHidden(r, c)) continue;
+      const key = `${r}-${c}`;
+      const cell = cells[key] || { text: "", colorKey: "none", rowspan: 1 };
+      const color = COLOR_PRESETS[cell.colorKey] || COLOR_PRESETS.none;
+      const rs = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : "";
+      html += `<td${rs} style="background:${color.bg};color:${color.fg}">${cell.text.replace(/\n/g, '<br>')}</td>`;
+    }
+    html += `</tr>\n`;
+  }
+  html += `</tbody></table></body></html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "timetable.html";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadExcel() {
+  let xml = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+<Style ss:ID="header"><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11"/><Interior ss:Color="#1e293b" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
+<Style ss:ID="tc"><Font ss:Bold="1" ss:Size="10"/><Interior ss:Color="#f1f5f9" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>`;
+
+  Object.entries(COLOR_PRESETS).forEach(([key, val]) => {
+    xml += `<Style ss:ID="c_${key}"><Font ss:Color="${val.fg}" ss:Size="10"/><Interior ss:Color="${val.bg}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>`;
+  });
+
+  xml += `</Styles><Worksheet ss:Name="시간표"><Table>
+<Column ss:Width="100"/>${DAYS.map(() => '<Column ss:Width="140"/>').join('')}
+<Row><Cell ss:StyleID="header"><Data ss:Type="String">시간</Data></Cell>${DAYS.map(d => `<Cell ss:StyleID="header"><Data ss:Type="String">${d}</Data></Cell>`).join('')}</Row>`;
+
+  for (let r = 0; r < TIMES.length; r++) {
+    xml += '<Row>';
+    xml += `<Cell ss:StyleID="tc"><Data ss:Type="String">${TIMES[r]}</Data></Cell>`;
+    for (let c = 0; c < 5; c++) {
+      if (isCellHidden(r, c)) continue;
+      const key = `${r}-${c}`;
+      const cell = cells[key] || { text: "", colorKey: "none", rowspan: 1 };
+      const sid = `c_${cell.colorKey || "none"}`;
+      const merge = cell.rowspan > 1 ? ` ss:MergeDown="${cell.rowspan - 1}"` : "";
+      xml += `<Cell ss:StyleID="${sid}"${merge}><Data ss:Type="String">${cell.text.replace(/\n/g, '&#10;')}</Data></Cell>`;
+    }
+    xml += '</Row>';
+  }
+
+  xml += '</Table></Worksheet></Workbook>';
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "timetable.xls";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadImage() {
+  // 캡처 전: 선택 하이라이트, 병합 배지, 시간셀 선택 모두 숨기기
+  const selectedEl = document.querySelector('.data-cell.selected');
+  if (selectedEl) selectedEl.classList.remove('selected');
+
+  const timeSelectedEl = document.querySelector('.time-cell[style*="outline"]');
+
+  // 병합 배지 모두 숨기기
+  const badges = document.querySelectorAll('.merge-badge');
+  badges.forEach(b => b.style.display = 'none');
+
+  // 시간셀 선택 하이라이트 제거
+  const timeCells = document.querySelectorAll('.time-cell');
+  const timeOutlines = [];
+  timeCells.forEach(tc => {
+    timeOutlines.push(tc.style.outline);
+    tc.style.outline = 'none';
+  });
+
+  const tableWrap = document.querySelector('.table-wrap');
+  const originalOverflow = tableWrap.style.overflow;
+  tableWrap.style.overflow = 'visible';
+
+  html2canvas(tableWrap, {
+    scale: 2,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    logging: false,
+  }).then(canvas => {
+    // 복원
+    tableWrap.style.overflow = originalOverflow;
+    if (selectedEl) selectedEl.classList.add('selected');
+    badges.forEach(b => b.style.display = '');
+    timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
+
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'timetable.png';
+    a.click();
+  }).catch(err => {
+    tableWrap.style.overflow = originalOverflow;
+    if (selectedEl) selectedEl.classList.add('selected');
+    badges.forEach(b => b.style.display = '');
+    timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
+    alert('이미지 저장에 실패했습니다: ' + err.message);
+  });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+  }
+});
+
+// Mouse up anywhere to finish drag
+document.addEventListener('mouseup', () => {
+  if (isDragging) finishDrag();
+});
+
+const STORAGE_KEY = 'timetable-editor-data';
+
+function saveToLocal() {
+  try {
+    const data = JSON.stringify({ cells, times: TIMES });
+    localStorage.setItem(STORAGE_KEY, data);
+    showToast('저장되었습니다');
+  } catch (e) {
+    alert('저장에 실패했습니다: ' + e.message);
+  }
+}
+
+function loadFromLocal() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data.cells && data.times) {
+      cells = data.cells;
+      TIMES = data.times;
+      return true;
+    }
+  } catch (e) { /* ignore */ }
+  return false;
+}
+
+function resetToDefault() {
+  if (!confirm('시간표를 모두 비웁니다. 저장되지 않은 변경사항은 사라집니다.\n(새로 열면 예시 데이터로 시작됩니다)')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  cells = {};
+  historyStack = [];
+  historyIdx = -1;
+  TIMES = [...DEFAULT_TIMES];
+  // 빈 셀 초기화
+  for (let r = 0; r < TIMES.length; r++) {
+    for (let c = 0; c < 5; c++) {
+      cells[`${r}-${c}`] = { text: "", colorKey: "none", rowspan: 1, colspan: 1 };
+    }
+  }
+  selected = null;
+  selectedTimeRow = null;
+  document.getElementById('panelTitle').textContent = '셀을 선택하세요';
+  document.getElementById('panelEmpty').style.display = 'block';
+  document.getElementById('panelEdit').style.display = 'none';
+  document.getElementById('panelTime').style.display = 'none';
+  pushHistory();
+  renderTable();
+  showToast('초기화되었습니다');
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; }, 1800);
+}
+
+// Initialize
+if (!loadFromLocal()) {
+  createInitialData();
+}
+pushHistory();
+renderTable();
+renderLegend();
+renderColorPalette();
+</script>
+</body>
+</html>
