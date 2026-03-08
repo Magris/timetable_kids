@@ -277,6 +277,11 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
       <button class="font-btn" data-font="'Sunflower'" onclick="changeFont(&quot;'Sunflower'&quot;)" style="font-family:'Sunflower',sans-serif">해바라기</button>
       <button class="font-btn" data-font="'Gamja Flower'" onclick="changeFont(&quot;'Gamja Flower'&quot;)" style="font-family:'Gamja Flower',sans-serif">감자꽃</button>
       <button class="font-btn" data-font="'Do Hyeon'" onclick="changeFont(&quot;'Do Hyeon'&quot;)" style="font-family:'Do Hyeon',sans-serif">도현</button>
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 6px;flex-shrink:0"></span>
+      <span style="font-size:11px;color:#64748b;font-weight:700;">크기</span>
+      <button class="font-btn" onclick="changeFontSize(-1)">A-</button>
+      <span id="fontSizeLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:20px;text-align:center">보통</span>
+      <button class="font-btn" onclick="changeFontSize(1)">A+</button>
     </div>
     <div id="tableTitle" contenteditable="true" style="
       text-align:center;
@@ -806,6 +811,8 @@ function renderTable() {
     }
     tbody.appendChild(tr);
   }
+  // 폰트 사이즈 재적용 (time-cell, th가 새로 생성되므로)
+  if (typeof applyFontSize === 'function') applyFontSize();
 }
 
 function finishDrag() {
@@ -997,6 +1004,29 @@ const STORAGE_KEY = 'timetable-editor-data';
 const DEFAULT_FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, sans-serif";
 
 let currentFont = 'default';
+let currentSizeLevel = 0; // -2 ~ +2
+
+const SIZE_LABELS = { '-2': '아주작게', '-1': '작게', '0': '보통', '1': '크게', '2': '아주크게' };
+const SIZE_SCALES = {
+  title:   { '-2': 14, '-1': 16, '0': 18, '1': 21, '2': 24 },
+  cell:    { '-2': 10, '-1': 11, '0': 12, '1': 14, '2': 16 },
+  time:    { '-2': 9,  '-1': 10, '0': 11, '1': 12, '2': 14 },
+  header:  { '-2': 11, '-1': 12, '0': 13, '1': 15, '2': 17 },
+};
+
+function changeFontSize(delta) {
+  currentSizeLevel = Math.max(-2, Math.min(2, currentSizeLevel + delta));
+  applyFontSize();
+}
+
+function applyFontSize() {
+  const lvl = String(currentSizeLevel);
+  document.getElementById('tableTitle').style.fontSize = SIZE_SCALES.title[lvl] + 'px';
+  document.getElementById('timetable').style.fontSize = SIZE_SCALES.cell[lvl] + 'px';
+  document.querySelectorAll('thead th').forEach(th => th.style.fontSize = SIZE_SCALES.header[lvl] + 'px');
+  document.querySelectorAll('.time-cell').forEach(tc => tc.style.fontSize = SIZE_SCALES.time[lvl] + 'px');
+  document.getElementById('fontSizeLabel').textContent = SIZE_LABELS[lvl];
+}
 
 function changeFont(val) {
   currentFont = val;
@@ -1016,7 +1046,7 @@ function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
     const font = currentFont;
-    const data = JSON.stringify({ cells, times: TIMES, title, font });
+    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -1036,6 +1066,10 @@ function loadFromLocal() {
       if (data.font) {
         changeFont(data.font);
       }
+      if (data.fontSize !== undefined) {
+        currentSizeLevel = data.fontSize;
+        applyFontSize();
+      }
       return true;
     }
   } catch (e) { /* ignore */ }
@@ -1051,6 +1085,8 @@ function resetToDefault() {
   TIMES = [...DEFAULT_TIMES];
   document.getElementById('tableTitle').textContent = '📅 우리 아이 시간표';
   changeFont('default');
+  currentSizeLevel = 0;
+  applyFontSize();
   // 빈 셀 초기화
   for (let r = 0; r < TIMES.length; r++) {
     for (let c = 0; c < 5; c++) {
