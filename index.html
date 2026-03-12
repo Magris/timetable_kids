@@ -79,6 +79,7 @@ body {
   grid-template-columns: 1fr 280px;
   gap: 16px;
   align-items: start;
+  margin-bottom: 260px;
 }
 @media (max-width: 800px) {
   .main { grid-template-columns: 1fr; }
@@ -99,6 +100,7 @@ table {
   font-size: 12px;
   user-select: none;
   table-layout: fixed;
+  flex: 1;
 }
 thead th {
   background: #1e293b;
@@ -110,9 +112,10 @@ thead th {
   position: sticky;
   top: 0;
   z-index: 2;
+  border: 1px solid #e2e8f0;
 }
-thead th:first-child { width: 110px; }
-thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
+thead th:first-child { width: 18%; }
+thead th:not(:first-child) { width: calc(82% / 5); }
 .time-cell {
   background: #f1f5f9;
   font-weight: 700;
@@ -120,8 +123,7 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
   padding: 10px 6px;
   text-align: center;
   white-space: nowrap;
-  border-right: 2px solid #cbd5e1;
-  border-bottom: 1px solid #e2e8f0;
+  border: 1px solid #e2e8f0;
   min-width: 100px;
   font-size: 11px;
 }
@@ -140,16 +142,6 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
 .data-cell:hover { filter: brightness(0.97); }
 .data-cell.selected { outline: 2px solid #2563eb; outline-offset: -2px; }
 .data-cell.in-drag { background: #bfdbfe !important; }
-.merge-badge {
-  position: absolute;
-  top: 2px;
-  right: 3px;
-  font-size: 9px;
-  background: rgba(0,0,0,0.1);
-  border-radius: 3px;
-  padding: 0 3px;
-  line-height: 14px;
-}
 
 /* Edit Panel */
 .panel {
@@ -224,6 +216,50 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
 .empty-state .icon { font-size: 40px; }
 .empty-state p { margin-top: 8px; font-size: 12px; }
 
+/* Size Bar */
+.size-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fefce8;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.size-preset {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  background: #fff;
+  color: #475569;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.size-preset:hover { background: #f1f5f9; }
+.size-preset.active { background: #92400e; color: #fff; border-color: #92400e; }
+.size-input {
+  width: 52px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  text-align: center;
+  font-family: inherit;
+  outline: none;
+}
+.size-input:focus { border-color: #2563eb; }
+.size-info {
+  font-size: 10px;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-weight: 600;
+}
+
 /* Legend */
 .legend {
   max-width: 1100px;
@@ -261,12 +297,14 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
     <button class="btn" onclick="resetToDefault()" title="기본 시간표로 초기화">🔄 초기화</button>
     <button class="btn btn-excel" onclick="downloadExcel()">📊 Excel</button>
     <button class="btn btn-img" onclick="downloadImage()">🖼️ 이미지</button>
+    <button class="btn" onclick="downloadPDF()" style="background:#dc2626;color:#fff;border-color:#dc2626;">📄 PDF</button>
   </div>
 </div>
 
 <div class="main">
-  <div class="table-wrap">
-    <div id="fontBar" style="display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap;align-items:center;">
+  <div>
+    <!-- 편집 도구 (인쇄 영역 밖) -->
+    <div id="fontBar" style="display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap;align-items:center;border:1px solid #e2e8f0;border-bottom:none;border-radius:0;">
       <span style="font-size:11px;color:#64748b;font-weight:700;margin-right:2px;">폰트</span>
       <button class="font-btn active" data-font="default" onclick="changeFont('default')" style="font-family:inherit">기본</button>
       <button class="font-btn" data-font="'Nanum Gothic'" onclick="changeFont(&quot;'Nanum Gothic'&quot;)" style="font-family:'Nanum Gothic',sans-serif">나눔고딕</button>
@@ -283,21 +321,41 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
       <span id="fontSizeLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:20px;text-align:center">보통</span>
       <button class="font-btn" onclick="changeFontSize(1)">A+</button>
     </div>
-    <div id="tableTitle" contenteditable="true" style="
-      text-align:center;
-      font-size:18px;
-      font-weight:800;
-      color:#1e293b;
-      padding:14px 12px 10px;
-      border-bottom:1px solid #e2e8f0;
-      outline:none;
-      cursor:text;
-      background:#fff;
-    ">📅 우리 아이 시간표</div>
-    <table id="timetable">
-      <thead><tr><th>시간</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
+    <div id="sizeBar" class="size-bar" style="border:1px solid #e2e8f0;border-top:none;border-bottom:none;">
+      <span style="font-size:11px;color:#92400e;font-weight:700;margin-right:2px;">📐 인쇄 사이즈</span>
+      <button class="size-preset active" data-w="85" data-h="55" onclick="applyPresetSize(this, 85, 55)">85×55mm</button>
+      <button class="size-preset" data-w="98" data-h="68" onclick="applyPresetSize(this, 98, 68)">98×68mm</button>
+      <button class="size-preset" data-w="100" data-h="70" onclick="applyPresetSize(this, 100, 70)">100×70mm</button>
+      <button class="size-preset" data-w="148" data-h="105" onclick="applyPresetSize(this, 148, 105)">A6 (148×105)</button>
+      <button class="size-preset" data-w="210" data-h="148" onclick="applyPresetSize(this, 210, 148)">A5 (210×148)</button>
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px;flex-shrink:0"></span>
+      <span style="font-size:11px;color:#64748b;">W</span>
+      <input type="number" class="size-input" id="sizeW" value="85" min="30" max="300" onchange="applyCustomSize()">
+      <span style="font-size:11px;color:#64748b;">× H</span>
+      <input type="number" class="size-input" id="sizeH" value="55" min="20" max="300" onchange="applyCustomSize()">
+      <span style="font-size:11px;color:#64748b;">mm</span>
+      <span class="size-info" id="sizeInfo">85 × 55 mm</span>
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px;flex-shrink:0"></span>
+      <button class="size-preset active" id="btnTitleToggle" onclick="toggleTitle()">제목 ON</button>
+    </div>
+    <!-- 인쇄 영역 (여기만 사이즈 제약 적용) -->
+    <div id="printArea" class="table-wrap" style="margin-top:30px;">
+      <div id="tableTitle" contenteditable="true" style="
+        text-align:center;
+        font-size:18px;
+        font-weight:800;
+        color:#1e293b;
+        padding:14px 12px 10px;
+        border-bottom:1px solid #e2e8f0;
+        outline:none;
+        cursor:text;
+        background:#fff;
+      ">📅 우리 아이 시간표</div>
+      <table id="timetable">
+        <thead><tr><th>시간</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="panel" id="panel">
@@ -375,6 +433,7 @@ thead th:not(:first-child) { width: calc((100% - 110px) / 5); }
 </a>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const COLOR_PRESETS = {
   school: { label: "학교(수업)", bg: "#e0f2fe", fg: "#0369a1", emoji: "📚" },
@@ -452,7 +511,7 @@ function createInitialData() {
   init(8, 3, "🏠 귀가", "home");
 
   // 금 (col 4) — 돌봄, 수학, 축구
-  init(0, 4, "돌봄 출석\n수학 선생님 픽업", "care");
+  init(0, 4, "돌봄 출석", "care");
   init(1, 4, "📐수학 1:30~2:30", "math", 4);
   init(5, 4, "🚗축구 이동", "transport");
   init(6, 4, "⚽축구\n3:00~4:30", "soccer", 2);
@@ -779,12 +838,6 @@ function renderTable() {
 
       td.innerHTML = (cell.text || '').replace(/\n/g, '<br>');
 
-      if (cell.rowspan > 1) {
-        const badge = document.createElement('span');
-        badge.className = 'merge-badge';
-        badge.textContent = '↕' + cell.rowspan;
-        td.appendChild(badge);
-      }
 
       // Events
       const row = r, col = c;
@@ -812,7 +865,9 @@ function renderTable() {
     tbody.appendChild(tr);
   }
   // 폰트 사이즈 재적용 (time-cell, th가 새로 생성되므로)
-  if (typeof applyFontSize === 'function') applyFontSize();
+  if (typeof applyFontSize === 'function' && printW === 0) applyFontSize();
+  // 인쇄 사이즈 모드이면 자동 스케일 적용
+  if (printW > 0 && typeof autoScaleFonts === 'function') autoScaleFonts();
 }
 
 function finishDrag() {
@@ -931,64 +986,186 @@ function downloadExcel() {
   URL.revokeObjectURL(a.href);
 }
 
-function downloadImage() {
-  // 캡처 전: 선택 하이라이트, 병합 배지, 시간셀 선택 모두 숨기기
-  const selectedEl = document.querySelector('.data-cell.selected');
-  if (selectedEl) selectedEl.classList.remove('selected');
+function prepareCapture() {
+  const state = {};
+  // 선택 하이라이트 제거
+  state.selectedEl = document.querySelector('.data-cell.selected');
+  if (state.selectedEl) state.selectedEl.classList.remove('selected');
 
-  const timeSelectedEl = document.querySelector('.time-cell[style*="outline"]');
-
-  // 병합 배지 모두 숨기기
-  const badges = document.querySelectorAll('.merge-badge');
-  badges.forEach(b => b.style.display = 'none');
+  // 병합 배지 숨기기
 
   // 시간셀 선택 하이라이트 제거
-  const timeCells = document.querySelectorAll('.time-cell');
-  const timeOutlines = [];
-  timeCells.forEach(tc => {
-    timeOutlines.push(tc.style.outline);
+  state.timeCells = document.querySelectorAll('.time-cell');
+  state.timeOutlines = [];
+  state.timeCells.forEach(tc => {
+    state.timeOutlines.push(tc.style.outline);
     tc.style.outline = 'none';
   });
 
   // 제목 편집 커서 제거
-  const titleEl = document.getElementById('tableTitle');
-  titleEl.contentEditable = 'false';
-  titleEl.blur();
+  state.titleEl = document.getElementById('tableTitle');
+  state.titleEl.contentEditable = 'false';
+  state.titleEl.blur();
 
-  // 폰트 바 숨기기
-  const fontBar = document.getElementById('fontBar');
-  fontBar.style.display = 'none';
+  // printArea 캡처 준비: 스케일 해제하고 원래 mm 크기로
+  state.area = document.getElementById('printArea');
+  state.origTransform = state.area.style.transform;
+  state.origOrigin = state.area.style.transformOrigin;
+  state.origOverflow = state.area.style.overflow;
+  state.area.style.transform = 'none';
+  state.area.style.overflow = 'visible';
 
-  const tableWrap = document.querySelector('.table-wrap');
-  const originalOverflow = tableWrap.style.overflow;
-  tableWrap.style.overflow = 'visible';
+  return state;
+}
 
-  html2canvas(tableWrap, {
-    scale: 2,
+function restoreCapture(state) {
+  state.area.style.transform = state.origTransform;
+  state.area.style.transformOrigin = state.origOrigin;
+  state.area.style.overflow = state.origOverflow;
+  if (state.selectedEl) state.selectedEl.classList.add('selected');
+  state.timeCells.forEach((tc, i) => tc.style.outline = state.timeOutlines[i]);
+  state.titleEl.contentEditable = 'true';
+}
+
+function downloadImage() {
+  const state = prepareCapture();
+  const area = state.area;
+
+  // 고해상도 캡처 스케일 (300dpi 기준)
+  const captureScale = (printW > 0) ? Math.max(4, Math.ceil(300 * printW / 25.4 / area.offsetWidth)) : 2;
+
+  html2canvas(area, {
+    scale: captureScale,
     backgroundColor: '#ffffff',
     useCORS: true,
     logging: false,
   }).then(canvas => {
-    // 복원
-    tableWrap.style.overflow = originalOverflow;
-    if (selectedEl) selectedEl.classList.add('selected');
-    badges.forEach(b => b.style.display = '');
-    timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
-    titleEl.contentEditable = 'true';
-    fontBar.style.display = 'flex';
-
+    restoreCapture(state);
     const a = document.createElement('a');
     a.href = canvas.toDataURL('image/png');
     a.download = 'timetable.png';
     a.click();
   }).catch(err => {
-    tableWrap.style.overflow = originalOverflow;
-    if (selectedEl) selectedEl.classList.add('selected');
-    badges.forEach(b => b.style.display = '');
-    timeCells.forEach((tc, i) => tc.style.outline = timeOutlines[i]);
-    titleEl.contentEditable = 'true';
-    fontBar.style.display = 'flex';
+    restoreCapture(state);
     alert('이미지 저장에 실패했습니다: ' + err.message);
+  });
+}
+
+// 안내 텍스트를 캔버스로 렌더링 (jsPDF 한글 깨짐 방지)
+function renderTextCanvas(lines, opts) {
+  const scale = 4;
+  const cW = (opts.width || 600) * scale;
+  const lineH = (opts.lineH || 18) * scale;
+  const cH = lines.length * lineH + 10 * scale;
+  const c = document.createElement('canvas');
+  c.width = cW; c.height = cH;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, cW, cH);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const fontBase = "'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+  lines.forEach((line, i) => {
+    ctx.fillStyle = line.color || '#888888';
+    ctx.font = `${line.bold ? 'bold ' : ''}${(line.size || 11) * scale}px ${fontBase}`;
+    ctx.fillText(line.text, cW / 2, i * lineH + 5 * scale);
+  });
+  return c.toDataURL('image/png');
+}
+
+function downloadPDF() {
+  const state = prepareCapture();
+  const area = state.area;
+
+  const pdfCaptureScale = (printW > 0) ? Math.max(4, Math.ceil(300 * printW / 25.4 / area.offsetWidth)) : 2;
+
+  html2canvas(area, {
+    scale: pdfCaptureScale,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    logging: false,
+  }).then(canvas => {
+    restoreCapture(state);
+
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const { jsPDF } = window.jspdf;
+
+    // 가로 200mm 초과 시 A4 가로(landscape) 모드
+    const useLandscape = (printW > 0 && printW > 200);
+    const orientation = useLandscape ? 'landscape' : 'portrait';
+    const pdf = new jsPDF(orientation, 'mm', 'a4');
+    const A4W = useLandscape ? 297 : 210;
+    const A4H = useLandscape ? 210 : 297;
+
+    if (printW > 0 && printH > 0) {
+      const imgW = printW, imgH = printH;
+      const dpi = Math.round(imgWidth / imgW * 25.4);
+
+      const imgX = (A4W - imgW) / 2;
+      const imgY = (A4H - imgH) / 2 - 15;
+
+      // 절취선 (점선)
+      pdf.setDrawColor(180, 180, 180);
+      pdf.setLineDashPattern([2, 2], 0);
+      pdf.setLineWidth(0.3);
+      pdf.rect(imgX, imgY, imgW, imgH);
+
+      // 시간표 이미지
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
+
+      // 절취선 모서리 마크
+      pdf.setDrawColor(100, 100, 100);
+      pdf.setLineDashPattern([], 0);
+      pdf.setLineWidth(0.4);
+      const m = 4;
+      pdf.line(imgX - m, imgY, imgX - 1, imgY);
+      pdf.line(imgX, imgY - m, imgX, imgY - 1);
+      pdf.line(imgX + imgW + 1, imgY, imgX + imgW + m, imgY);
+      pdf.line(imgX + imgW, imgY - m, imgX + imgW, imgY - 1);
+      pdf.line(imgX - m, imgY + imgH, imgX - 1, imgY + imgH);
+      pdf.line(imgX, imgY + imgH + 1, imgX, imgY + imgH + m);
+      pdf.line(imgX + imgW + 1, imgY + imgH, imgX + imgW + m, imgY + imgH);
+      pdf.line(imgX + imgW, imgY + imgH + 1, imgX + imgW, imgY + imgH + m);
+
+      // 상단 제목 (캔버스 이미지)
+      const titleImg = renderTextCanvas([
+        { text: `시간표 인쇄용 (${imgW} x ${imgH} mm)`, size: 13, bold: true, color: '#555555' }
+      ], { width: 500, lineH: 22 });
+      pdf.addImage(titleImg, 'PNG', (A4W - 85) / 2, imgY - 13, 85, 7);
+
+      // 하단 안내 텍스트 (캔버스 이미지 — 한글 정상 출력)
+      const infoImg = renderTextCanvas([
+        { text: '✂ 절취선을 따라 잘라주세요', size: 12, bold: true, color: '#666666' },
+        { text: '', size: 6 },
+        { text: `실제 인쇄 크기: ${imgW} x ${imgH} mm`, size: 10, color: '#999999' },
+        { text: `이미지 해상도: ${imgWidth} x ${imgHeight} px (${dpi} DPI)`, size: 10, color: '#999999' },
+        { text: '', size: 6 },
+        { text: 'A4 용지에 100% 배율로 인쇄하면 실제 크기로 출력됩니다', size: 11, bold: true, color: '#555555' },
+      ], { width: 600, lineH: 17 });
+      pdf.addImage(infoImg, 'PNG', (A4W - 105) / 2, imgY + imgH + 8, 105, 22);
+
+      pdf.save('timetable_A4.pdf');
+    } else {
+      const ratio = imgWidth / imgHeight;
+      const margin = 15;
+      const availWidth = A4W - margin * 2;
+      const availHeight = A4H - margin * 2;
+      let finalWidth = availWidth;
+      let finalHeight = finalWidth / ratio;
+      if (finalHeight > availHeight) {
+        finalHeight = availHeight;
+        finalWidth = finalHeight * ratio;
+      }
+      const x = (A4W - finalWidth) / 2;
+      const y = (A4H - finalHeight) / 2;
+      pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+      pdf.save('timetable.pdf');
+    }
+  }).catch(err => {
+    restoreCapture(state);
+    alert('PDF 저장에 실패했습니다: ' + err.message);
   });
 }
 
@@ -1004,6 +1181,195 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('mouseup', () => {
   if (isDragging) finishDrag();
 });
+
+// ─── Print Size ───
+let printW = 85; // mm
+let printH = 55; // mm
+let showTitle = true;
+const MM_TO_PX = 3.7795275591; // 1mm = 3.78px at 96dpi
+
+function toggleTitle() {
+  showTitle = !showTitle;
+  const titleEl = document.getElementById('tableTitle');
+  const btn = document.getElementById('btnTitleToggle');
+  titleEl.style.display = showTitle ? '' : 'none';
+  btn.textContent = showTitle ? '제목 ON' : '제목 OFF';
+  btn.classList.toggle('active', showTitle);
+  if (printW > 0) applySizeConstraint();
+}
+
+function applyPresetSize(btn, w, h) {
+  document.querySelectorAll('.size-preset').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // 제목 토글 버튼은 별도 유지
+  document.getElementById('btnTitleToggle').classList.toggle('active', showTitle);
+  if (w === 0 && h === 0) {
+    // 자유 모드 — 사이즈 제한 해제, 사용자가 직접 입력 가능
+    printW = 0;
+    printH = 0;
+    document.getElementById('sizeW').value = '';
+    document.getElementById('sizeH').value = '';
+    document.getElementById('sizeW').disabled = false;
+    document.getElementById('sizeH').disabled = false;
+    document.getElementById('sizeW').placeholder = 'W';
+    document.getElementById('sizeH').placeholder = 'H';
+    removeSizeConstraint();
+    document.getElementById('sizeInfo').textContent = '자유 크기 (W·H 입력 후 적용)';
+    return;
+  }
+  document.getElementById('sizeW').disabled = false;
+  document.getElementById('sizeH').disabled = false;
+  document.getElementById('sizeW').value = w;
+  document.getElementById('sizeH').value = h;
+  printW = w;
+  printH = h;
+  applySizeConstraint();
+}
+
+function applyCustomSize() {
+  const w = parseInt(document.getElementById('sizeW').value) || 0;
+  const h = parseInt(document.getElementById('sizeH').value) || 0;
+  if (w < 30 || h < 20) return;
+  printW = w;
+  printH = h;
+  // 커스텀이면 프리셋 해제
+  document.querySelectorAll('.size-preset').forEach(b => b.classList.remove('active'));
+  applySizeConstraint();
+}
+
+function applySizeConstraint() {
+  const area = document.getElementById('printArea');
+  const tbl = document.getElementById('timetable');
+  const title = document.getElementById('tableTitle');
+  const pxW = printW * MM_TO_PX;
+  const pxH = printH * MM_TO_PX;
+
+  // 실제 mm 크기로 내부 레이아웃 설정
+  area.style.width = pxW + 'px';
+  area.style.height = pxH + 'px';
+  area.style.overflow = 'hidden';
+  area.style.boxSizing = 'border-box';
+  area.style.display = 'flex';
+  area.style.flexDirection = 'column';
+
+  // 제목 영역은 자연 높이, 테이블이 나머지 꽉 채움
+  title.style.flexShrink = '0';
+  tbl.style.minWidth = 'unset';
+  tbl.parentElement && (tbl.style.flex = '1');
+  // table 자체가 높이를 채우도록
+  tbl.style.height = '100%';
+
+  // 화면에서 보기 편하도록 스케일 업
+  const minDisplayWidth = 560;
+  const displayScale = Math.max(1, minDisplayWidth / pxW);
+  area.style.transform = `scale(${displayScale})`;
+  area.style.transformOrigin = 'top left';
+  // transform은 레이아웃에 영향 안 주므로, 부모 wrapper에 명시적 높이+margin 설정
+  const wrapper = area.parentElement;
+  const scaledH = Math.ceil(pxH * displayScale) + 8;
+  wrapper.style.minHeight = scaledH + 'px';
+  wrapper.style.height = scaledH + 'px';
+  wrapper.style.marginBottom = '16px';
+
+  // 사이즈에 따라 폰트·패딩 자동 스케일
+  autoScaleFonts();
+
+  document.getElementById('sizeInfo').textContent = `${printW} × ${printH} mm (화면 ${Math.round(displayScale * 100)}%)`;
+}
+
+function removeSizeConstraint() {
+  const area = document.getElementById('printArea');
+  const tbl = document.getElementById('timetable');
+  const title = document.getElementById('tableTitle');
+  area.style.width = '';
+  area.style.height = '';
+  area.style.overflow = 'auto';
+  area.style.transform = '';
+  area.style.transformOrigin = '';
+  area.style.display = '';
+  area.style.flexDirection = '';
+  const wrapper = area.parentElement;
+  wrapper.style.height = '';
+  wrapper.style.minHeight = '';
+  wrapper.style.marginBottom = '';
+  title.style.flexShrink = '';
+  title.style.lineHeight = '';
+  title.style.fontSize = '';
+  title.style.padding = '';
+  tbl.style.minWidth = '650px';
+  tbl.style.height = '';
+  tbl.style.flex = '';
+  // sticky 복원, 폰트 복원
+  document.querySelectorAll('thead th').forEach(th => {
+    th.style.position = '';
+    th.style.fontSize = '';
+    th.style.padding = '';
+  });
+  document.querySelectorAll('.time-cell').forEach(tc => {
+    tc.style.fontSize = '';
+    tc.style.padding = '';
+    tc.style.minWidth = '';
+    tc.style.whiteSpace = '';
+    tc.style.wordBreak = '';
+    tc.style.borderRight = '';
+  });
+  document.querySelectorAll('.data-cell').forEach(dc => {
+    dc.style.padding = '';
+    dc.style.lineHeight = '';
+  });
+  tbl.style.fontSize = '';
+  // 자유모드에서 폰트크기 적용
+  if (typeof applyFontSize === 'function') applyFontSize();
+}
+
+function autoScaleFonts() {
+  if (printW === 0) return;
+  const pxW = printW * MM_TO_PX;
+  const pxH = printH * MM_TO_PX;
+  const scale = Math.min(printW / 85, printH / 55);
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  // 폰트 크기 레벨 오프셋 적용 (A+/A- 버튼과 연동)
+  // currentSizeLevel: -2 ~ +2 → 비례 오프셋 0.7 ~ 1.3
+  const sizeOffset = 1 + currentSizeLevel * 0.15;
+
+  // 제목
+  const titleSize = clamp(Math.round(12 * scale * sizeOffset), 5, 28);
+  const titlePad = clamp(Math.round(5 * scale), 2, 14);
+
+  const title = document.getElementById('tableTitle');
+  title.style.fontSize = titleSize + 'px';
+  title.style.padding = `${titlePad}px 4px ${Math.round(titlePad * 0.6)}px`;
+  title.style.lineHeight = '1.2';
+
+  // 테이블 폰트
+  const cellSize = clamp(Math.round(8 * scale * sizeOffset), 3, 20);
+  const headerSize = clamp(Math.round(9 * scale * sizeOffset), 4, 22);
+  const timeSize = clamp(Math.round(7 * scale * sizeOffset), 3, 18);
+  const hdrPad = clamp(Math.round(4 * scale), 2, 10);
+  const cellPad = clamp(Math.round(3 * scale), 1, 8);
+
+  document.getElementById('timetable').style.fontSize = cellSize + 'px';
+
+  document.querySelectorAll('thead th').forEach(th => {
+    th.style.fontSize = headerSize + 'px';
+    th.style.padding = `${hdrPad}px 2px`;
+    th.style.position = 'static';
+  });
+  document.querySelectorAll('.time-cell').forEach(tc => {
+    tc.style.fontSize = timeSize + 'px';
+    tc.style.padding = `${cellPad}px 2px`;
+    tc.style.minWidth = 'unset';
+    tc.style.whiteSpace = 'normal';
+    tc.style.wordBreak = 'keep-all';
+  });
+  document.querySelectorAll('.data-cell').forEach(dc => {
+    dc.style.padding = `${cellPad}px 2px`;
+    dc.style.lineHeight = '1.15';
+  });
+
+  document.getElementById('fontSizeLabel').textContent = SIZE_LABELS[String(currentSizeLevel)];
+}
 
 const STORAGE_KEY = 'timetable-editor-data';
 const DEFAULT_FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, sans-serif";
@@ -1021,7 +1387,11 @@ const SIZE_SCALES = {
 
 function changeFontSize(delta) {
   currentSizeLevel = Math.max(-2, Math.min(2, currentSizeLevel + delta));
-  applyFontSize();
+  if (printW > 0) {
+    autoScaleFonts(); // 인쇄사이즈 모드: 비례 기반 + 오프셋
+  } else {
+    applyFontSize(); // 자유 모드: 고정 테이블
+  }
 }
 
 function applyFontSize() {
@@ -1035,11 +1405,11 @@ function applyFontSize() {
 
 function changeFont(val) {
   currentFont = val;
-  const tableWrap = document.querySelector('.table-wrap');
+  const printArea = document.getElementById('printArea');
   if (val === 'default') {
-    tableWrap.style.fontFamily = DEFAULT_FONT;
+    printArea.style.fontFamily = DEFAULT_FONT;
   } else {
-    tableWrap.style.fontFamily = val + ", sans-serif";
+    printArea.style.fontFamily = val + ", sans-serif";
   }
   // 버튼 활성화 상태 갱신
   document.querySelectorAll('.font-btn').forEach(btn => {
@@ -1051,7 +1421,7 @@ function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
     const font = currentFont;
-    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel });
+    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -1075,6 +1445,36 @@ function loadFromLocal() {
         currentSizeLevel = data.fontSize;
         applyFontSize();
       }
+      if (data.printW !== undefined && data.printH !== undefined) {
+        printW = data.printW;
+        printH = data.printH;
+        document.getElementById('sizeW').value = printW || '';
+        document.getElementById('sizeH').value = printH || '';
+        if (printW > 0) {
+          applySizeConstraint();
+          // 프리셋 버튼 활성화
+          let matched = false;
+          document.querySelectorAll('.size-preset').forEach(b => {
+            const bw = parseInt(b.dataset.w), bh = parseInt(b.dataset.h);
+            if (bw === printW && bh === printH) { b.classList.add('active'); matched = true; }
+            else b.classList.remove('active');
+          });
+        } else {
+          removeSizeConstraint();
+          document.querySelectorAll('.size-preset').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.w) === 0);
+          });
+          document.getElementById('sizeW').disabled = true;
+          document.getElementById('sizeH').disabled = true;
+        }
+      }
+      if (data.showTitle !== undefined) {
+        showTitle = data.showTitle;
+        document.getElementById('tableTitle').style.display = showTitle ? '' : 'none';
+        const btn = document.getElementById('btnTitleToggle');
+        btn.textContent = showTitle ? '제목 ON' : '제목 OFF';
+        btn.classList.toggle('active', showTitle);
+      }
       return true;
     }
   } catch (e) { /* ignore */ }
@@ -1091,7 +1491,16 @@ function resetToDefault() {
   document.getElementById('tableTitle').textContent = '📅 우리 아이 시간표';
   changeFont('default');
   currentSizeLevel = 0;
-  applyFontSize();
+  // 사이즈 초기화
+  printW = 85; printH = 55;
+  document.getElementById('sizeW').value = 85;
+  document.getElementById('sizeH').value = 55;
+  document.getElementById('sizeW').disabled = false;
+  document.getElementById('sizeH').disabled = false;
+  document.querySelectorAll('.size-preset').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.w) === 85 && parseInt(b.dataset.h) === 55);
+  });
+  applySizeConstraint();
   // 빈 셀 초기화
   for (let r = 0; r < TIMES.length; r++) {
     for (let c = 0; c < 5; c++) {
@@ -1125,6 +1534,7 @@ function showToast(msg) {
 // Initialize
 if (!loadFromLocal()) {
   createInitialData();
+  applySizeConstraint(); // 기본 85x55mm 적용
 }
 pushHistory();
 renderTable();
