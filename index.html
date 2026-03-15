@@ -418,7 +418,7 @@ thead th:not(:first-child) { width: calc(82% / 5); }
     <div id="panelTime" style="display:none">
       <div class="field">
         <label class="field-label">시간 라벨</label>
-        <input type="text" id="editTimeText" style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;">
+        <textarea id="editTimeText" rows="2" style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;resize:none;"></textarea>
       </div>
       <div class="actions" style="margin-top:12px">
         <button class="btn btn-primary" style="width:100%;padding:10px 0;font-weight:700" onclick="applyTimeEdit()">✓ 적용</button>
@@ -615,7 +615,7 @@ function selectTimeCell(row) {
   selected = null;
   selectedTimeRow = row;
 
-  document.getElementById('editTimeText').value = TIMES[row];
+  document.getElementById('editTimeText').value = TIMES[row] || '';
   document.getElementById('panelTitle').textContent = `시간 편집 [${row + 1}행: ${TIMES[row]}]`;
   document.getElementById('panelEmpty').style.display = 'none';
   document.getElementById('panelEdit').style.display = 'none';
@@ -822,7 +822,7 @@ function renderTable() {
     // Time column
     const timeTd = document.createElement('td');
     timeTd.className = 'time-cell';
-    timeTd.textContent = TIMES[r];
+    timeTd.innerHTML = (TIMES[r] || '').replace(/\n/g, '<br>');
     timeTd.style.cursor = 'pointer';
     // 인쇄모드: 셀 생성 시 캐싱된 스타일 바로 적용 (깜빡임 방지)
     if (cachedPrintStyles) {
