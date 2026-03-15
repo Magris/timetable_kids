@@ -363,6 +363,10 @@ thead th:not(:first-child) { width: calc(82% / 5); }
       <span style="font-size:11px;color:#64748b;">세로보정</span>
       <input type="range" id="vOffsetRange" min="-5" max="5" value="0" style="width:80px;cursor:pointer;" oninput="applyVOffset(this.value)">
       <span id="vOffsetLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:20px;">0</span>
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px;flex-shrink:0"></span>
+      <span style="font-size:11px;color:#64748b;">줄간격</span>
+      <input type="range" id="lineHeightRange" min="80" max="200" value="140" step="10" style="width:80px;cursor:pointer;" oninput="applyLineHeight(this.value)">
+      <span id="lineHeightLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:28px;">1.4</span>
     </div>
     <div id="colorBar" style="display:flex;gap:6px;padding:6px 12px;background:#f8fafc;flex-wrap:wrap;align-items:center;border:1px solid #e2e8f0;border-top:none;border-bottom:none;">
       <span style="font-size:11px;color:#64748b;font-weight:700;margin-right:2px;">🎨 색상</span>
@@ -859,6 +863,8 @@ function isInDragRange(row, col) {
 function renderTable() {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
+  const lhVal = (cellLineHeight / 100).toFixed(1);
+  const lhMarginY = `-${(cellLineHeight / 100 - 1) / 2}em`;
 
   for (let r = 0; r < TIMES.length; r++) {
     const tr = document.createElement('tr');
@@ -868,8 +874,9 @@ function renderTable() {
     timeTd.className = 'time-cell';
     timeTd.style.background = timeBg;
     timeTd.style.color = timeFg;
-    const vStyle = vOffset !== 0 ? ` style="transform:translateY(${vOffset}px)"` : '';
-    timeTd.innerHTML = `<span class="cell-inner"${vStyle}>${(TIMES[r] || '').replace(/\n/g, '<br>')}</span>`;
+    const vTransform = vOffset !== 0 ? `translateY(${vOffset}px)` : '';
+    const innerStyle = `line-height:${lhVal};margin-top:${lhMarginY};margin-bottom:${lhMarginY}${vTransform ? ';transform:' + vTransform : ''}`;
+    timeTd.innerHTML = `<span class="cell-inner" style="${innerStyle}">${(TIMES[r] || '').replace(/\n/g, '<br>')}</span>`;
     timeTd.style.cursor = 'pointer';
     if (timeBolds[r]) {
       timeTd.style.fontWeight = '900';
@@ -904,7 +911,6 @@ function renderTable() {
       // 인쇄모드: 셀 생성 시 캐싱된 스타일 바로 적용
       if (cachedPrintStyles) {
         td.style.padding = cachedPrintStyles.cellPad + 'px 2px';
-        td.style.lineHeight = '1.15';
       }
 
       td.style.background = isInDragRange(r, c) ? '#bfdbfe' : color.bg;
@@ -915,8 +921,9 @@ function renderTable() {
       }
       if (cell.rowspan > 1) td.rowSpan = cell.rowspan;
 
-      const vS = vOffset !== 0 ? ` style="transform:translateY(${vOffset}px)"` : '';
-      td.innerHTML = `<span class="cell-inner"${vS}>${(cell.text || '').replace(/\n/g, '<br>')}</span>`;
+      const vT = vOffset !== 0 ? `translateY(${vOffset}px)` : '';
+      const diStyle = `line-height:${lhVal};margin-top:${lhMarginY};margin-bottom:${lhMarginY}${vT ? ';transform:' + vT : ''}`;
+      td.innerHTML = `<span class="cell-inner" style="${diStyle}">${(cell.text || '').replace(/\n/g, '<br>')}</span>`;
 
 
       // Events
@@ -1253,6 +1260,7 @@ function toggleTitle() {
 
 let timeColW = 18; // %
 let vOffset = 0; // 세로 보정값 (-5 ~ +5)
+let cellLineHeight = 140; // 줄간격 (80~200, 실제값 0.8~2.0)
 function applyTimeColWidth(val) {
   timeColW = parseInt(val);
   document.getElementById('timeColLabel').textContent = timeColW + '%';
@@ -1269,6 +1277,19 @@ function applyVOffset(val) {
   // 칸 크기 변경 없이 내부 텍스트만 이동
   document.querySelectorAll('.cell-inner').forEach(el => {
     el.style.transform = vOffset !== 0 ? `translateY(${vOffset}px)` : '';
+  });
+}
+
+function applyLineHeight(val) {
+  cellLineHeight = parseInt(val);
+  const lhVal = (cellLineHeight / 100).toFixed(1);
+  document.getElementById('lineHeightLabel').textContent = lhVal;
+  // cell-inner 스팬에만 줄간격 적용 + negative margin으로 칸 높이 유지
+  const marginY = `-${(cellLineHeight / 100 - 1) / 2}em`;
+  document.querySelectorAll('.cell-inner').forEach(el => {
+    el.style.lineHeight = lhVal;
+    el.style.marginTop = marginY;
+    el.style.marginBottom = marginY;
   });
 }
 
@@ -1403,7 +1424,6 @@ function removeSizeConstraint() {
   });
   document.querySelectorAll('.time-cell').forEach(tc => {
     tc.style.fontSize = '';
-    tc.style.padding = '';
     tc.style.minWidth = '';
     tc.style.whiteSpace = '';
     tc.style.wordBreak = '';
@@ -1411,7 +1431,9 @@ function removeSizeConstraint() {
   });
   document.querySelectorAll('.data-cell').forEach(dc => {
     dc.style.padding = '';
-    dc.style.lineHeight = '';
+  });
+  document.querySelectorAll('.time-cell').forEach(tc => {
+    tc.style.padding = '';
   });
   tbl.style.fontSize = '';
   // 자유모드에서 폰트크기 적용
@@ -1463,7 +1485,14 @@ function autoScaleFonts() {
   });
   document.querySelectorAll('.data-cell').forEach(dc => {
     dc.style.padding = `${s.cellPad}px 2px`;
-    dc.style.lineHeight = '1.15';
+  });
+  // cell-inner에 줄간격 재적용
+  const lhVal = (cellLineHeight / 100).toFixed(1);
+  const marginY = `-${(cellLineHeight / 100 - 1) / 2}em`;
+  document.querySelectorAll('.cell-inner').forEach(el => {
+    el.style.lineHeight = lhVal;
+    el.style.marginTop = marginY;
+    el.style.marginBottom = marginY;
   });
 
   document.getElementById('fontSizeLabel').textContent = SIZE_LABELS[String(currentSizeLevel)];
@@ -1521,7 +1550,7 @@ function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
     const font = currentFont;
-    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds, vOffset, headerBg, headerFg, timeBg, timeFg });
+    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds, vOffset, headerBg, headerFg, timeBg, timeFg, cellLineHeight });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -1598,6 +1627,10 @@ function loadFromLocal() {
         timeBg = data.timeBg; timeFg = data.timeFg;
         applyTimeCellColors();
       }
+      if (data.cellLineHeight !== undefined) {
+        document.getElementById('lineHeightRange').value = data.cellLineHeight;
+        applyLineHeight(data.cellLineHeight);
+      }
       return true;
     }
   } catch (e) { /* ignore */ }
@@ -1624,6 +1657,10 @@ function resetToDefault() {
     b.classList.toggle('active', parseInt(b.dataset.w) === 85 && parseInt(b.dataset.h) === 55);
   });
   applySizeConstraint();
+  // 줄간격 초기화
+  cellLineHeight = 140;
+  document.getElementById('lineHeightRange').value = 140;
+  document.getElementById('lineHeightLabel').textContent = '1.4';
   // 빈 셀 초기화
   for (let r = 0; r < TIMES.length; r++) {
     for (let c = 0; c < 5; c++) {
