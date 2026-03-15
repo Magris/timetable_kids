@@ -348,6 +348,10 @@ thead th:not(:first-child) { width: calc(82% / 5); }
       <span class="size-info" id="sizeInfo">85 × 55 mm</span>
       <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px;flex-shrink:0"></span>
       <button class="size-preset active" id="btnTitleToggle" onclick="toggleTitle()">제목 ON</button>
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px;flex-shrink:0"></span>
+      <span style="font-size:11px;color:#64748b;">시간칸</span>
+      <input type="range" id="timeColWidth" min="8" max="35" value="18" style="width:80px;cursor:pointer;" oninput="applyTimeColWidth(this.value)">
+      <span id="timeColLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:28px;">18%</span>
     </div>
     <!-- 인쇄 영역 (여기만 사이즈 제약 적용) -->
     <div id="printArea" class="table-wrap" style="margin-top:30px;">
@@ -1222,6 +1226,17 @@ function toggleTitle() {
   if (printW > 0) applySizeConstraint();
 }
 
+let timeColW = 18; // %
+function applyTimeColWidth(val) {
+  timeColW = parseInt(val);
+  document.getElementById('timeColLabel').textContent = timeColW + '%';
+  // CSS 규칙 업데이트
+  const remaining = 100 - timeColW;
+  document.querySelectorAll('thead th:first-child').forEach(th => th.style.width = timeColW + '%');
+  document.querySelectorAll('thead th:not(:first-child)').forEach(th => th.style.width = (remaining / 5) + '%');
+  document.querySelectorAll('.time-cell').forEach(tc => tc.style.width = timeColW + '%');
+}
+
 function applyPresetSize(btn, w, h) {
   document.querySelectorAll('.size-preset').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -1449,7 +1464,7 @@ function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
     const font = currentFont;
-    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle });
+    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -1502,6 +1517,10 @@ function loadFromLocal() {
         const btn = document.getElementById('btnTitleToggle');
         btn.textContent = showTitle ? '제목 ON' : '제목 OFF';
         btn.classList.toggle('active', showTitle);
+      }
+      if (data.timeColW !== undefined) {
+        document.getElementById('timeColWidth').value = data.timeColW;
+        applyTimeColWidth(data.timeColW);
       }
       return true;
     }
