@@ -87,6 +87,7 @@ body {
 }
 @media (max-width: 800px) {
   .main { grid-template-columns: 1fr; }
+  .panel { position: static; }
 }
 
 /* Table Container */
@@ -124,9 +125,7 @@ thead th {
   border-right: 1px solid #000;
   border-bottom: 1px solid #000;
 }
-thead tr:last-child th { border-top: 1px solid #000; }
-thead th:first-child { width: 18%; }
-thead th:not(:first-child) { width: calc(82% / 5); }
+/* 열 너비는 colgroup으로 제어 */
 .time-cell {
   background: #f1f5f9;
   font-weight: 700;
@@ -138,7 +137,7 @@ thead th:not(:first-child) { width: calc(82% / 5); }
   border: none;
   border-right: 1px solid #000;
   border-bottom: 1px solid #000;
-  min-width: 100px;
+  min-width: 0;
   font-size: 11px;
 }
 .cell-inner {
@@ -339,6 +338,8 @@ thead th:not(:first-child) { width: calc(82% / 5); }
       <button class="font-btn" onclick="changeFontSize(-1)">A-</button>
       <span id="fontSizeLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:20px;text-align:center">보통</span>
       <button class="font-btn" onclick="changeFontSize(1)">A+</button>
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 6px;flex-shrink:0"></span>
+      <button class="font-btn" id="btnAllBold" onclick="toggleAllBold()" style="font-weight:700;min-width:60px;">전체 B</button>
     </div>
     <div id="fontBar2" style="display:flex;gap:6px;padding:6px 12px;background:#f8fafc;flex-wrap:wrap;align-items:center;border:1px solid #e2e8f0;border-top:none;border-bottom:none;">
       <span style="font-size:11px;color:#2563eb;font-weight:700;margin-right:2px;">N</span>
@@ -390,24 +391,37 @@ thead th:not(:first-child) { width: calc(82% / 5); }
       <input type="color" id="timeFgColor" value="#475569" style="width:24px;height:24px;border:1px solid #ccc;border-radius:4px;cursor:pointer;padding:0;" oninput="applyTimeCellColors()">
     </div>
     <!-- 인쇄 영역 (여기만 사이즈 제약 적용) -->
-    <div id="printArea" class="table-wrap" style="margin-top:30px;">
+    <div id="printWrap" style="margin-top:30px;overflow:hidden;">
+    <div id="printArea" class="table-wrap">
+      <div id="tableTitle" contenteditable="true" style="
+        text-align:center;
+        font-size:18px;
+        font-weight:800;
+        color:#1e293b;
+        padding:14px 12px 10px;
+        outline:none;
+        cursor:text;
+        background:#fff;
+        border:1px solid #000;
+        border-bottom:none;
+        margin:0;
+        box-sizing:border-box;
+      ">📅 우리 아이 시간표</div>
       <table id="timetable">
+        <colgroup>
+          <col id="col-time" style="width:18%">
+          <col id="col-mon" style="width:16.4%">
+          <col id="col-tue" style="width:16.4%">
+          <col id="col-wed" style="width:16.4%">
+          <col id="col-thu" style="width:16.4%">
+          <col id="col-fri" style="width:16.4%">
+        </colgroup>
         <thead>
-          <tr><th colspan="6" id="tableTitle" contenteditable="true" style="
-            text-align:center;
-            font-size:18px;
-            font-weight:800;
-            color:#1e293b;
-            padding:14px 12px 10px;
-            outline:none;
-            cursor:text;
-            background:#fff;
-            border-bottom:none;
-          ">📅 우리 아이 시간표</th></tr>
           <tr><th>시간</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
+    </div>
     </div>
   </div>
 
@@ -790,6 +804,27 @@ function applyEdit() {
   }
 
   cells[key] = { text, colorKey: editColorKey, rowspan, colspan: 1, bold: isBold };
+  pushHistory();
+  renderTable();
+}
+
+let allBold = false;
+
+function toggleAllBold() {
+  allBold = !allBold;
+  const btn = document.getElementById('btnAllBold');
+  btn.classList.toggle('active', allBold);
+  btn.style.background = allBold ? '#1e293b' : '#fff';
+  btn.style.color = allBold ? '#fff' : '#334155';
+  btn.style.borderColor = allBold ? '#1e293b' : '#cbd5e1';
+  // 모든 데이터 셀 bold 적용
+  for (const key in cells) {
+    cells[key].bold = allBold;
+  }
+  // 모든 시간 셀 bold 적용
+  for (let r = 0; r < TIMES.length; r++) {
+    timeBolds[r] = allBold;
+  }
   pushHistory();
   renderTable();
 }
@@ -1288,7 +1323,7 @@ function toggleTitle() {
   showTitle = !showTitle;
   const titleEl = document.getElementById('tableTitle');
   const btn = document.getElementById('btnTitleToggle');
-  titleEl.parentElement.style.display = showTitle ? '' : 'none';
+  titleEl.style.display = showTitle ? '' : 'none';
   btn.textContent = showTitle ? '제목 ON' : '제목 OFF';
   btn.classList.toggle('active', showTitle);
   if (printW > 0) applySizeConstraint();
@@ -1300,11 +1335,12 @@ let cellLineHeight = 140; // 줄간격 (80~200, 실제값 0.8~2.0)
 function applyTimeColWidth(val) {
   timeColW = parseInt(val);
   document.getElementById('timeColLabel').textContent = timeColW + '%';
-  // CSS 규칙 업데이트
   const remaining = 100 - timeColW;
-  document.querySelectorAll('thead th:first-child').forEach(th => th.style.width = timeColW + '%');
-  document.querySelectorAll('thead th:not(:first-child)').forEach(th => th.style.width = (remaining / 5) + '%');
-  document.querySelectorAll('.time-cell').forEach(tc => tc.style.width = timeColW + '%');
+  // colgroup으로 열 너비 제어 (table-layout:fixed에서 확실하게 적용)
+  document.getElementById('col-time').style.width = timeColW + '%';
+  ['col-mon','col-tue','col-wed','col-thu','col-fri'].forEach(id => {
+    document.getElementById(id).style.width = (remaining / 5) + '%';
+  });
 }
 
 function applyVOffset(val) {
@@ -1335,8 +1371,7 @@ let timeBg = '#f1f5f9', timeFg = '#475569';
 function applyHeaderColors() {
   headerBg = document.getElementById('headerBgColor').value;
   headerFg = document.getElementById('headerFgColor').value;
-  // 제목 행 제외, 요일 헤더만 적용
-  document.querySelectorAll('thead tr:last-child th').forEach(th => {
+  document.querySelectorAll('thead th').forEach(th => {
     th.style.background = headerBg;
     th.style.color = headerFg;
   });
@@ -1412,22 +1447,24 @@ function applySizeConstraint() {
   // table 자체가 높이를 채우도록
   tbl.style.height = '100%';
 
-  // 화면에서 보기 편하도록 스케일 업
-  const minDisplayWidth = 560;
+  // 화면에서 보기 편하도록 스케일 업 (화면 너비 초과 방지)
+  const wrapper = document.getElementById('printWrap');
+  const containerWidth = wrapper.parentElement.clientWidth || 560;
+  const minDisplayWidth = Math.min(560, containerWidth);
   const displayScale = Math.max(1, minDisplayWidth / pxW);
-  area.style.transform = `scale(${displayScale})`;
+  const scaledW = Math.ceil(pxW * displayScale);
+  // 화면 너비 넘지 않도록 추가 제한
+  const finalScale = scaledW > containerWidth ? (containerWidth / pxW) : displayScale;
+  area.style.transform = `scale(${finalScale})`;
   area.style.transformOrigin = 'top left';
-  // transform은 레이아웃에 영향 안 주므로, 부모 wrapper에 명시적 높이+margin 설정
-  const wrapper = area.parentElement;
-  const scaledH = Math.ceil(pxH * displayScale) + 8;
-  wrapper.style.minHeight = scaledH + 'px';
+  // transform은 레이아웃에 영향 안 주므로, printWrap에 명시적 크기 설정
+  const scaledH = Math.ceil(pxH * finalScale) + 8;
   wrapper.style.height = scaledH + 'px';
-  wrapper.style.marginBottom = '16px';
 
   // 사이즈에 따라 폰트·패딩 자동 스케일
   autoScaleFonts();
 
-  document.getElementById('sizeInfo').textContent = `${printW} × ${printH} mm (화면 ${Math.round(displayScale * 100)}%)`;
+  document.getElementById('sizeInfo').textContent = `${printW} × ${printH} mm (화면 ${Math.round(finalScale * 100)}%)`;
 }
 
 function removeSizeConstraint() {
@@ -1441,10 +1478,8 @@ function removeSizeConstraint() {
   area.style.transformOrigin = '';
   area.style.display = '';
   area.style.flexDirection = '';
-  const wrapper = area.parentElement;
+  const wrapper = document.getElementById('printWrap');
   wrapper.style.height = '';
-  wrapper.style.minHeight = '';
-  wrapper.style.marginBottom = '';
   title.style.flexShrink = '';
   title.style.lineHeight = '';
   title.style.fontSize = '';
@@ -1586,7 +1621,7 @@ function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
     const font = currentFont;
-    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds, vOffset, headerBg, headerFg, timeBg, timeFg, cellLineHeight });
+    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds, vOffset, headerBg, headerFg, timeBg, timeFg, cellLineHeight, allBold });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -1635,7 +1670,7 @@ function loadFromLocal() {
       }
       if (data.showTitle !== undefined) {
         showTitle = data.showTitle;
-        document.getElementById('tableTitle').parentElement.style.display = showTitle ? '' : 'none';
+        document.getElementById('tableTitle').style.display = showTitle ? '' : 'none';
         const btn = document.getElementById('btnTitleToggle');
         btn.textContent = showTitle ? '제목 ON' : '제목 OFF';
         btn.classList.toggle('active', showTitle);
@@ -1666,6 +1701,14 @@ function loadFromLocal() {
       if (data.cellLineHeight !== undefined) {
         document.getElementById('lineHeightRange').value = data.cellLineHeight;
         applyLineHeight(data.cellLineHeight);
+      }
+      if (data.allBold) {
+        allBold = true;
+        const abBtn = document.getElementById('btnAllBold');
+        abBtn.classList.add('active');
+        abBtn.style.background = '#1e293b';
+        abBtn.style.color = '#fff';
+        abBtn.style.borderColor = '#1e293b';
       }
       return true;
     }
