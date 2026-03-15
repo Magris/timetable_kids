@@ -1158,49 +1158,20 @@ function downloadPDF() {
     if (printW > 0 && printH > 0) {
       const imgW = printW, imgH = printH;
       const dpi = Math.round(imgWidth / imgW * 25.4);
-
       const imgX = (A4W - imgW) / 2;
-      const imgY = (A4H - imgH) / 2 - 15;
-
-      // 절취선 (점선)
-      pdf.setDrawColor(180, 180, 180);
-      pdf.setLineDashPattern([2, 2], 0);
-      pdf.setLineWidth(0.3);
-      pdf.rect(imgX, imgY, imgW, imgH);
+      const imgY = (A4H - imgH) / 2 - 10;
 
       // 시간표 이미지
       pdf.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
 
-      // 절취선 모서리 마크
-      pdf.setDrawColor(100, 100, 100);
-      pdf.setLineDashPattern([], 0);
-      pdf.setLineWidth(0.4);
-      const m = 4;
-      pdf.line(imgX - m, imgY, imgX - 1, imgY);
-      pdf.line(imgX, imgY - m, imgX, imgY - 1);
-      pdf.line(imgX + imgW + 1, imgY, imgX + imgW + m, imgY);
-      pdf.line(imgX + imgW, imgY - m, imgX + imgW, imgY - 1);
-      pdf.line(imgX - m, imgY + imgH, imgX - 1, imgY + imgH);
-      pdf.line(imgX, imgY + imgH + 1, imgX, imgY + imgH + m);
-      pdf.line(imgX + imgW + 1, imgY + imgH, imgX + imgW + m, imgY + imgH);
-      pdf.line(imgX + imgW, imgY + imgH + 1, imgX + imgW, imgY + imgH + m);
-
-      // 상단 제목 (캔버스 이미지)
-      const titleImg = renderTextCanvas([
-        { text: `시간표 인쇄용 (${imgW} x ${imgH} mm)`, size: 13, bold: true, color: '#555555' }
-      ], { width: 500, lineH: 22 });
-      pdf.addImage(titleImg, 'PNG', (A4W - 85) / 2, imgY - 13, 85, 7);
-
-      // 하단 안내 텍스트 (캔버스 이미지 — 한글 정상 출력)
+      // 하단 안내 텍스트
       const infoImg = renderTextCanvas([
-        { text: '✂ 절취선을 따라 잘라주세요', size: 12, bold: true, color: '#666666' },
-        { text: '', size: 6 },
-        { text: `실제 인쇄 크기: ${imgW} x ${imgH} mm`, size: 10, color: '#999999' },
+        { text: `인쇄 크기: ${imgW} x ${imgH} mm`, size: 10, color: '#999999' },
         { text: `이미지 해상도: ${imgWidth} x ${imgHeight} px (${dpi} DPI)`, size: 10, color: '#999999' },
         { text: '', size: 6 },
         { text: 'A4 용지에 100% 배율로 인쇄하면 실제 크기로 출력됩니다', size: 11, bold: true, color: '#555555' },
       ], { width: 600, lineH: 17 });
-      pdf.addImage(infoImg, 'PNG', (A4W - 105) / 2, imgY + imgH + 8, 105, 22);
+      pdf.addImage(infoImg, 'PNG', (A4W - 105) / 2, imgY + imgH + 6, 105, 16);
 
       pdf.save('timetable_A4.pdf');
     } else {
