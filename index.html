@@ -445,6 +445,15 @@ thead th {
         <label class="field-label">색상</label>
         <div class="color-palette" id="colorPalette"></div>
         <div class="color-hint" id="colorHint">선택: 없음</div>
+        <div id="categoryColorEdit" style="display:none;margin-top:8px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:11px;color:#64748b;font-weight:700;">배경</span>
+            <input type="color" id="catBgColor" style="width:28px;height:28px;border:1px solid #ccc;border-radius:4px;cursor:pointer;padding:0;" oninput="updateCategoryColor()">
+            <span style="font-size:11px;color:#64748b;font-weight:700;">글자</span>
+            <input type="color" id="catFgColor" style="width:28px;height:28px;border:1px solid #ccc;border-radius:4px;cursor:pointer;padding:0;" oninput="updateCategoryColor()">
+            <button class="btn" onclick="resetCategoryColor()" style="font-size:10px;padding:2px 6px;">초기화</button>
+          </div>
+        </div>
       </div>
       <div class="field">
         <label class="field-label">스타일</label>
@@ -521,6 +530,12 @@ const COLOR_PRESETS = {
   home: { label: "귀가", bg: "#f0fdf4", fg: "#166534", emoji: "🏠" },
   none: { label: "없음", bg: "#ffffff", fg: "#1f2937", emoji: "" },
 };
+
+// 기본 색상 백업 (초기화용)
+const DEFAULT_COLORS = {};
+Object.entries(COLOR_PRESETS).forEach(([key, val]) => {
+  DEFAULT_COLORS[key] = { bg: val.bg, fg: val.fg };
+});
 
 const DAYS = ["월", "화", "수", "목", "금"];
 let TIMES = [
@@ -895,6 +910,38 @@ function renderColorPalette() {
     palette.appendChild(btn);
   });
   document.getElementById('colorHint').textContent = '선택: ' + (COLOR_PRESETS[editColorKey]?.label || '없음');
+  // 카테고리 색상 편집 패널 업데이트
+  const catEdit = document.getElementById('categoryColorEdit');
+  if (editColorKey) {
+    catEdit.style.display = '';
+    document.getElementById('catBgColor').value = COLOR_PRESETS[editColorKey].bg;
+    document.getElementById('catFgColor').value = COLOR_PRESETS[editColorKey].fg;
+  } else {
+    catEdit.style.display = 'none';
+  }
+}
+
+function updateCategoryColor() {
+  if (!editColorKey) return;
+  const newBg = document.getElementById('catBgColor').value;
+  const newFg = document.getElementById('catFgColor').value;
+  COLOR_PRESETS[editColorKey].bg = newBg;
+  COLOR_PRESETS[editColorKey].fg = newFg;
+  // 팔레트 버튼 색상 갱신
+  renderColorPalette();
+  // 해당 카테고리를 사용하는 모든 셀 갱신
+  renderTable();
+}
+
+function resetCategoryColor() {
+  if (!editColorKey) return;
+  const def = DEFAULT_COLORS[editColorKey];
+  if (def) {
+    COLOR_PRESETS[editColorKey].bg = def.bg;
+    COLOR_PRESETS[editColorKey].fg = def.fg;
+    renderColorPalette();
+    renderTable();
+  }
 }
 
 function isInDragRange(row, col) {
@@ -1621,7 +1668,15 @@ function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
     const font = currentFont;
-    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds, vOffset, headerBg, headerFg, timeBg, timeFg, cellLineHeight, allBold });
+    // 커스텀 카테고리 색상 (기본값과 다른 것만 저장)
+    const customColors = {};
+    Object.entries(COLOR_PRESETS).forEach(([key, val]) => {
+      const def = DEFAULT_COLORS[key];
+      if (def && (val.bg !== def.bg || val.fg !== def.fg)) {
+        customColors[key] = { bg: val.bg, fg: val.fg };
+      }
+    });
+    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds, vOffset, headerBg, headerFg, timeBg, timeFg, cellLineHeight, allBold, customColors });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -1710,6 +1765,14 @@ function loadFromLocal() {
         abBtn.style.color = '#fff';
         abBtn.style.borderColor = '#1e293b';
       }
+      if (data.customColors) {
+        Object.entries(data.customColors).forEach(([key, col]) => {
+          if (COLOR_PRESETS[key]) {
+            COLOR_PRESETS[key].bg = col.bg;
+            COLOR_PRESETS[key].fg = col.fg;
+          }
+        });
+      }
       return true;
     }
   } catch (e) { /* ignore */ }
@@ -1726,6 +1789,11 @@ function resetToDefault() {
   document.getElementById('tableTitle').textContent = '📅 우리 아이 시간표';
   changeFont('default');
   currentSizeLevel = -1;
+  // 카테고리 색상 초기화
+  Object.entries(DEFAULT_COLORS).forEach(([key, col]) => {
+    COLOR_PRESETS[key].bg = col.bg;
+    COLOR_PRESETS[key].fg = col.fg;
+  });
   // 사이즈 초기화
   printW = 85; printH = 55;
   document.getElementById('sizeW').value = 85;
