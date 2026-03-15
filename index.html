@@ -134,6 +134,10 @@ thead th:not(:first-child) { width: calc(82% / 5); }
   min-width: 100px;
   font-size: 11px;
 }
+.cell-inner {
+  display: inline-block;
+  transition: transform 0.1s;
+}
 .data-cell {
   border: 1px solid #000;
   padding: 10px 5px 8px;
@@ -355,6 +359,22 @@ thead th:not(:first-child) { width: calc(82% / 5); }
       <span style="font-size:11px;color:#64748b;">시간칸</span>
       <input type="range" id="timeColWidth" min="8" max="35" value="18" style="width:80px;cursor:pointer;" oninput="applyTimeColWidth(this.value)">
       <span id="timeColLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:28px;">18%</span>
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px;flex-shrink:0"></span>
+      <span style="font-size:11px;color:#64748b;">세로보정</span>
+      <input type="range" id="vOffsetRange" min="-5" max="5" value="0" style="width:80px;cursor:pointer;" oninput="applyVOffset(this.value)">
+      <span id="vOffsetLabel" style="font-size:11px;color:#475569;font-weight:700;min-width:20px;">0</span>
+    </div>
+    <div id="colorBar" style="display:flex;gap:6px;padding:6px 12px;background:#f8fafc;flex-wrap:wrap;align-items:center;border:1px solid #e2e8f0;border-top:none;border-bottom:none;">
+      <span style="font-size:11px;color:#64748b;font-weight:700;margin-right:2px;">🎨 색상</span>
+      <span style="font-size:11px;color:#64748b;">헤더</span>
+      <input type="color" id="headerBgColor" value="#1e293b" style="width:24px;height:24px;border:1px solid #ccc;border-radius:4px;cursor:pointer;padding:0;" oninput="applyHeaderColors()">
+      <span style="font-size:11px;color:#64748b;">글자</span>
+      <input type="color" id="headerFgColor" value="#ffffff" style="width:24px;height:24px;border:1px solid #ccc;border-radius:4px;cursor:pointer;padding:0;" oninput="applyHeaderColors()">
+      <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px;flex-shrink:0"></span>
+      <span style="font-size:11px;color:#64748b;">시간칸</span>
+      <input type="color" id="timeBgColor" value="#f1f5f9" style="width:24px;height:24px;border:1px solid #ccc;border-radius:4px;cursor:pointer;padding:0;" oninput="applyTimeCellColors()">
+      <span style="font-size:11px;color:#64748b;">글자</span>
+      <input type="color" id="timeFgColor" value="#475569" style="width:24px;height:24px;border:1px solid #ccc;border-radius:4px;cursor:pointer;padding:0;" oninput="applyTimeCellColors()">
     </div>
     <!-- 인쇄 영역 (여기만 사이즈 제약 적용) -->
     <div id="printArea" class="table-wrap" style="margin-top:30px;">
@@ -846,7 +866,10 @@ function renderTable() {
     // Time column
     const timeTd = document.createElement('td');
     timeTd.className = 'time-cell';
-    timeTd.innerHTML = (TIMES[r] || '').replace(/\n/g, '<br>');
+    timeTd.style.background = timeBg;
+    timeTd.style.color = timeFg;
+    const vStyle = vOffset !== 0 ? ` style="transform:translateY(${vOffset}px)"` : '';
+    timeTd.innerHTML = `<span class="cell-inner"${vStyle}>${(TIMES[r] || '').replace(/\n/g, '<br>')}</span>`;
     timeTd.style.cursor = 'pointer';
     if (timeBolds[r]) {
       timeTd.style.fontWeight = '900';
@@ -892,7 +915,8 @@ function renderTable() {
       }
       if (cell.rowspan > 1) td.rowSpan = cell.rowspan;
 
-      td.innerHTML = (cell.text || '').replace(/\n/g, '<br>');
+      const vS = vOffset !== 0 ? ` style="transform:translateY(${vOffset}px)"` : '';
+      td.innerHTML = `<span class="cell-inner"${vS}>${(cell.text || '').replace(/\n/g, '<br>')}</span>`;
 
 
       // Events
@@ -924,6 +948,8 @@ function renderTable() {
   if (typeof applyFontSize === 'function' && printW === 0) applyFontSize();
   // 인쇄 사이즈 모드이면 자동 스케일 적용
   if (printW > 0 && typeof autoScaleFonts === 'function') autoScaleFonts();
+  // 헤더 색상 재적용
+  if (typeof applyHeaderColors === 'function') applyHeaderColors();
 }
 
 function finishDrag() {
@@ -1226,6 +1252,7 @@ function toggleTitle() {
 }
 
 let timeColW = 18; // %
+let vOffset = 0; // 세로 보정값 (-5 ~ +5)
 function applyTimeColWidth(val) {
   timeColW = parseInt(val);
   document.getElementById('timeColLabel').textContent = timeColW + '%';
@@ -1234,6 +1261,37 @@ function applyTimeColWidth(val) {
   document.querySelectorAll('thead th:first-child').forEach(th => th.style.width = timeColW + '%');
   document.querySelectorAll('thead th:not(:first-child)').forEach(th => th.style.width = (remaining / 5) + '%');
   document.querySelectorAll('.time-cell').forEach(tc => tc.style.width = timeColW + '%');
+}
+
+function applyVOffset(val) {
+  vOffset = parseInt(val);
+  document.getElementById('vOffsetLabel').textContent = vOffset;
+  // 칸 크기 변경 없이 내부 텍스트만 이동
+  document.querySelectorAll('.cell-inner').forEach(el => {
+    el.style.transform = vOffset !== 0 ? `translateY(${vOffset}px)` : '';
+  });
+}
+
+let headerBg = '#1e293b', headerFg = '#ffffff';
+let timeBg = '#f1f5f9', timeFg = '#475569';
+
+function applyHeaderColors() {
+  headerBg = document.getElementById('headerBgColor').value;
+  headerFg = document.getElementById('headerFgColor').value;
+  // 제목 행 제외, 요일 헤더만 적용
+  document.querySelectorAll('thead tr:last-child th').forEach(th => {
+    th.style.background = headerBg;
+    th.style.color = headerFg;
+  });
+}
+
+function applyTimeCellColors() {
+  timeBg = document.getElementById('timeBgColor').value;
+  timeFg = document.getElementById('timeFgColor').value;
+  document.querySelectorAll('.time-cell').forEach(tc => {
+    tc.style.background = timeBg;
+    tc.style.color = timeFg;
+  });
 }
 
 function applyPresetSize(btn, w, h) {
@@ -1463,7 +1521,7 @@ function saveToLocal() {
   try {
     const title = document.getElementById('tableTitle').textContent;
     const font = currentFont;
-    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds });
+    const data = JSON.stringify({ cells, times: TIMES, title, font, fontSize: currentSizeLevel, printW, printH, showTitle, timeColW, timeBolds, vOffset, headerBg, headerFg, timeBg, timeFg });
     localStorage.setItem(STORAGE_KEY, data);
     showToast('저장되었습니다');
   } catch (e) {
@@ -1523,6 +1581,22 @@ function loadFromLocal() {
       }
       if (data.timeBolds) {
         timeBolds = data.timeBolds;
+      }
+      if (data.vOffset !== undefined) {
+        document.getElementById('vOffsetRange').value = data.vOffset;
+        applyVOffset(data.vOffset);
+      }
+      if (data.headerBg) {
+        document.getElementById('headerBgColor').value = data.headerBg;
+        document.getElementById('headerFgColor').value = data.headerFg;
+        headerBg = data.headerBg; headerFg = data.headerFg;
+        applyHeaderColors();
+      }
+      if (data.timeBg) {
+        document.getElementById('timeBgColor').value = data.timeBg;
+        document.getElementById('timeFgColor').value = data.timeFg;
+        timeBg = data.timeBg; timeFg = data.timeFg;
+        applyTimeCellColors();
       }
       return true;
     }
